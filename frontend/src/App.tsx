@@ -444,11 +444,13 @@ function Overview({
   user,
   refundSummary,
   activeFlagCount,
+  showRefundPriority,
   onNavigate,
 }: {
   user: User;
   refundSummary: RefundResponse["summary"] | null;
   activeFlagCount: number | null;
+  showRefundPriority: boolean;
   onNavigate: (id: ModuleId) => void;
 }) {
   const accessibleModules = NAV_ITEMS.filter(
@@ -522,7 +524,7 @@ function Overview({
                 <ArrowRight size={16} className="row-arrow" />
               </button>
             )}
-            {hasPermission(user, "refunds:read") && (
+            {hasPermission(user, "refunds:read") && showRefundPriority && (
               <button className="activity-row" onClick={() => onNavigate("refunds")}>
                 <span className="activity-icon activity-icon--warning">
                   <CircleDollarSign size={17} />
@@ -764,10 +766,10 @@ function FeatureFlagsPanel({
 
 function RefundsPanel({
   user,
-  onSummaryChange,
+  onDataChange,
 }: {
   user: User;
-  onSummaryChange: (summary: RefundResponse["summary"]) => void;
+  onDataChange: (data: RefundResponse) => void;
 }) {
   const [data, setData] = useState<RefundResponse | null>(null);
   const [notice, setNotice] = useState("");
@@ -775,15 +777,15 @@ function RefundsPanel({
   useEffect(() => {
     api.refunds(user.id).then((response) => {
       setData(response);
-      onSummaryChange(response.summary);
+      onDataChange(response);
     });
-  }, [onSummaryChange, user.id]);
+  }, [onDataChange, user.id]);
 
   async function approve(refundId: string) {
     const updated = await api.approveRefund(user.id, refundId);
     const nextData = await api.refunds(user.id);
     setData(nextData);
-    onSummaryChange(nextData.summary);
+    onDataChange(nextData);
     setNotice(
       updated.status === "Approved"
         ? `${updated.id} approved. Audit event recorded.`
@@ -1018,17 +1020,21 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [refundSummary, setRefundSummary] = useState<RefundResponse["summary"] | null>(null);
+  const [refundData, setRefundData] = useState<RefundResponse | null>(null);
   const [activeFlagCount, setActiveFlagCount] = useState<number | null>(null);
 
   const currentMeta = useMemo(() => PAGE_META[active], [active]);
+  const refundSummary = refundData?.summary ?? null;
+  const showRefundPriority =
+    refundData?.items.some((refund) => refund.id === "RF-8291" && refund.status !== "Approved")
+    ?? false;
 
   useEffect(() => {
     if (!user) return;
     if (hasPermission(user, "refunds:read")) {
-      api.refunds(user.id).then((response) => setRefundSummary(response.summary));
+      api.refunds(user.id).then(setRefundData);
     } else {
-      setRefundSummary(null);
+      setRefundData(null);
     }
     if (hasPermission(user, "feature_flags:read")) {
       api.featureFlags(user.id).then((flags) => {
@@ -1056,7 +1062,7 @@ export default function App() {
   function logout() {
     setUser(null);
     setActive("overview");
-    setRefundSummary(null);
+    setRefundData(null);
     setActiveFlagCount(null);
   }
 
@@ -1090,6 +1096,7 @@ export default function App() {
             user={user}
             refundSummary={refundSummary}
             activeFlagCount={activeFlagCount}
+            showRefundPriority={showRefundPriority}
             onNavigate={setActive}
           />
         )}
@@ -1098,7 +1105,7 @@ export default function App() {
           <FeatureFlagsPanel user={user} onActiveCountChange={setActiveFlagCount} />
         )}
         {active === "refunds" && (
-          <RefundsPanel user={user} onSummaryChange={setRefundSummary} />
+          <RefundsPanel user={user} onDataChange={setRefundData} />
         )}
         {active === "people" && <PeoplePanel user={user} />}
       </main>
