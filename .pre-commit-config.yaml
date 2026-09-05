@@ -1,0 +1,106 @@
+# Local commit gate. Install once with `npm run hooks:install`.
+# Every hook here also runs in CI (.github/workflows/pr-checks.yml), so a commit that
+# passes locally should land a green PR.
+minimum_pre_commit_version: "3.0.0"
+default_install_hook_types: [pre-commit, pre-push, commit-msg]
+default_stages: [pre-commit]
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: no-commit-to-branch
+        args: [--branch, main]
+      - id: check-added-large-files
+        args: [--maxkb=500]
+      - id: check-merge-conflict
+      - id: check-yaml
+      - id: check-json
+        exclude: ^frontend/tsconfig.*\.json$
+      - id: detect-private-key
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+
+  - repo: local
+    hooks:
+      # --- data-security guardrails (scripts/checks) ---------------------------------
+      - id: guard-secrets
+        name: guardrail · no secrets or env files
+        entry: python3 scripts/checks/check_secrets.py
+        language: system
+        pass_filenames: true
+      - id: guard-sensitive-data
+        name: guardrail · synthetic data only, no sensitive logging
+        entry: python3 scripts/checks/check_sensitive_data.py
+        language: system
+        pass_filenames: true
+      - id: guard-protected-files
+        name: guardrail · protected files need PROTECTED_CHANGE_REASON
+        entry: python3 scripts/checks/check_protected_files.py
+        language: system
+        pass_filenames: true
+      - id: guard-authorization
+        name: guardrail · every API route keeps its permission check
+        entry: python3 scripts/checks/check_authorization.py
+        language: system
+        files: ^backend/app/.*\.py$
+        pass_filenames: false
+      - id: guard-dependencies
+        name: guardrail · dependencies pinned exactly
+        entry: python3 scripts/checks/check_dependencies.py --offline
+        language: system
+        files: ^(package\.json|frontend/package\.json|backend/pyproject\.toml)$
+        pass_filenames: false
+      - id: guard-commit-message
+        name: guardrail · commit message has no secrets or personal data
+        entry: python3 scripts/checks/check_secrets.py
+        language: system
+        stages: [commit-msg]
+
+      # --- code quality ---------------------------------------------------------------
+      - id: ruff
+        name: backend · ruff
+        entry: poetry --directory backend run ruff check --force-exclude
+        language: system
+        types: [python]
+        files: ^(backend/|scripts/checks/)
+      - id: ruff-format
+        name: backend · ruff format
+        entry: poetry --directory backend run ruff format --check --force-exclude
+        language: system
+        types: [python]
+        files: ^(backend/|scripts/checks/)
+      - id: mypy
+        name: backend · mypy
+        entry: poetry --directory backend run mypy --config-file backend/pyproject.toml backend/app
+        language: system
+        files: ^backend/
+        pass_filenames: false
+      - id: eslint
+        name: frontend · eslint
+        entry: npm --workspace frontend run lint --
+        language: system
+        files: ^frontend/src/.*\.(ts|tsx)$
+        pass_filenames: false
+      - id: typecheck
+        name: frontend · typecheck
+        entry: npm run typecheck
+        language: system
+        files: ^frontend/
+        pass_filenames: false
+
+      # --- slower checks, run before push ---------------------------------------------
+      - id: pytest
+        name: backend · pytest
+        entry: poetry --directory backend run pytest -q
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
+      - id: build
+        name: frontend · build
+        entry: npm run build
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]

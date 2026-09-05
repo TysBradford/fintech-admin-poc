@@ -1,0 +1,107 @@
+name: PR checks
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened, labeled, unlabeled]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: pr-checks-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  guardrails:
+    name: Data-security guardrails
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Secrets and env files
+        run: python3 scripts/checks/check_secrets.py --all
+
+      - name: Synthetic data and sensitive logging
+        run: python3 scripts/checks/check_sensitive_data.py --all
+
+      - name: Route authorization and CORS
+        run: python3 scripts/checks/check_authorization.py
+
+      - name: Protected files require the security-review label
+        if: github.event_name == 'pull_request'
+        env:
+          PR_LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+        run: python3 scripts/checks/check_protected_files.py --base origin/${{ github.base_ref }}
+
+      - name: Dependency pinning and 7-day cool-off
+        run: python3 scripts/checks/check_dependencies.py ${{ github.event_name == 'pull_request' && format('--base origin/{0}', github.base_ref) || '--offline' }}
+
+      - name: Pull request description
+        if: github.event_name == 'pull_request'
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: python3 scripts/checks/check_pr_description.py
+
+      - name: Commit messages
+        if: github.event_name == 'pull_request'
+        run: |
+          git log --format=%B origin/${{ github.base_ref }}..HEAD > /tmp/commit-messages.txt
+          python3 scripts/checks/check_secrets.py /tmp/commit-messages.txt
+          python3 scripts/checks/check_sensitive_data.py /tmp/commit-messages.txt
+
+  backend:
+    name: Backend quality
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+      - name: Install Poetry
+        run: pipx install poetry==1.8.5
+      - name: Install dependencies
+        run: poetry --directory backend install --no-interaction
+      - name: ruff
+        run: |
+          poetry --directory backend run ruff check .
+          poetry --directory backend run ruff format --check .
+      - name: mypy
+        run: poetry --directory backend run mypy --config-file backend/pyproject.toml backend/app
+      - name: pytest
+        run: poetry --directory backend run pytest -q
+
+  frontend:
+    name: Frontend quality
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run build
+      - name: Frontend must not hold secrets in the bundle
+        run: python3 scripts/checks/check_secrets.py $(find frontend/dist -type f -name '*.js')
+
+  hooks-in-sync:
+    name: Hooks match CI
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+      - name: pre-commit config is valid
+        run: pipx run pre-commit==4.0.1 validate-config .pre-commit-config.yaml

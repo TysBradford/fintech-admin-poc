@@ -36,15 +36,25 @@ export const api = {
     request<User>("/api/auth/me", userId),
   kycCases: (userId: string) =>
     request<KycCase[]>("/api/kyc/cases", userId),
+  assignKycCase: (userId: string, caseId: string) =>
+    request<KycCase>(`/api/kyc/cases/${caseId}/assign`, userId, {
+      method: "POST",
+      body: JSON.stringify({ reason: "Claimed from the manual review queue" }),
+    }),
   featureFlags: (userId: string) =>
     request<FeatureFlag[]>("/api/feature-flags", userId),
-  updateFeatureFlag: (userId: string, flagId: string, enabled: boolean) =>
+  updateFeatureFlag: (userId: string, flagId: string, enabled: boolean, reason: string) =>
     request<FeatureFlag>(`/api/feature-flags/${flagId}`, userId, {
       method: "PUT",
-      body: JSON.stringify({ enabled, reason: "Prototype demonstration" }),
+      body: JSON.stringify({ enabled, reason }),
     }),
   refunds: (userId: string) =>
     request<RefundResponse>("/api/refunds", userId),
+  assignRefund: (userId: string, refundId: string) =>
+    request<Refund>(`/api/refunds/${refundId}/assign`, userId, {
+      method: "POST",
+      body: JSON.stringify({ reason: "Claimed from the refund operations queue" }),
+    }),
   approveRefund: (userId: string, refundId: string) =>
     request<Refund>(`/api/refunds/${refundId}/approve`, userId, {
       method: "POST",

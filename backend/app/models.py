@@ -24,6 +24,7 @@ class Role(str, Enum):
 
 class Permission(str, Enum):
     KYC_READ = "kyc:read"
+    KYC_WRITE = "kyc:write"
     FEATURE_FLAGS_READ = "feature_flags:read"
     FEATURE_FLAGS_WRITE = "feature_flags:write"
     REFUNDS_READ = "refunds:read"
@@ -38,6 +39,10 @@ class User(BaseModel):
     email: str
     job_title: str
     department: str
+    location: str
+    last_active: str
+    access_review: str
+    mfa_status: str
     roles: list[Role]
     permissions: list[Permission] = Field(default_factory=list)
     avatar_color: str
@@ -69,6 +74,10 @@ class RoleUpdate(BaseModel):
 
 class FeatureFlagUpdate(BaseModel):
     enabled: bool
+    reason: str = Field(min_length=3, max_length=200)
+
+
+class AssignmentRequest(BaseModel):
     reason: str = Field(min_length=3, max_length=200)
 
 

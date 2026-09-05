@@ -73,12 +73,35 @@ def test_role_permissions_guard_read_routes(
 def test_compliance_user_can_access_kyc() -> None:
     response = client.get("/api/kyc/cases", headers={"X-Demo-User": "amina"})
     assert response.status_code == 200
-    assert response.json()[0]["id"] == "KYC-1048"
+    assert len(response.json()) >= 18
+    assert {"assignee", "sla_state", "audit"} <= response.json()[0].keys()
+
+
+def test_compliance_user_can_claim_kyc_case() -> None:
+    response = client.post(
+        "/api/kyc/cases/KYC-1086/assign",
+        headers={"X-Demo-User": "amina"},
+        json={"reason": "Claimed for manual document review"},
+    )
+    assert response.status_code == 200
+    assert response.json()["assignee_id"] == "amina"
+    assert response.json()["audit"][0]["actor"] == "Amina Yusuf"
 
 
 def test_compliance_user_cannot_access_feature_flags() -> None:
     response = client.get("/api/feature-flags", headers={"X-Demo-User": "amina"})
     assert response.status_code == 403
+
+
+def test_feature_flag_change_records_actor_and_reason() -> None:
+    response = client.put(
+        "/api/feature-flags/home-balance-insights",
+        headers={"X-Demo-User": "leo"},
+        json={"enabled": False, "reason": "Experiment reached its sample target"},
+    )
+    assert response.status_code == 200
+    assert response.json()["enabled"] is False
+    assert response.json()["audit"][0]["actor"] == "Leo Martins"
 
 
 def test_super_admin_can_update_roles() -> None:
@@ -206,6 +229,17 @@ def test_role_update_rejects_blank_reason() -> None:
 def test_unconfigured_auth_mode_fails_closed() -> None:
     with pytest.raises(RuntimeError, match="no configured identity provider"):
         build_security_context("entra")
+
+
+def test_support_user_can_claim_refund() -> None:
+    response = client.post(
+        "/api/refunds/RF-8249/assign",
+        headers={"X-Demo-User": "priya"},
+        json={"reason": "Taking ownership of breached request"},
+    )
+    assert response.status_code == 200
+    assert response.json()["assignee_id"] == "priya"
+    assert response.json()["audit"][0]["actor"] == "Priya Shah"
 
 
 def test_refund_approval_persists() -> None:

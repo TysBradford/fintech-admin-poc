@@ -5,7 +5,14 @@ from app.adapters import DemoFeatureFlagProvider, DemoKycDataSource, DemoPayment
 from app.auth import get_current_user, get_security_context, require_permission
 from app.composition import build_security_context
 from app.config import settings
-from app.models import FeatureFlagUpdate, Permission, RefundRequest, RoleUpdate, User
+from app.models import (
+    AssignmentRequest,
+    FeatureFlagUpdate,
+    Permission,
+    RefundRequest,
+    RoleUpdate,
+    User,
+)
 from app.ports import FeatureFlagProvider, KycDataSource, PaymentsProvider
 from app.security import SecurityContext, UserNotFoundError
 
@@ -74,6 +81,21 @@ def list_kyc_cases(
     return kyc_source.list_cases()
 
 
+@app.post("/api/kyc/cases/{case_id}/assign")
+def assign_kyc_case(
+    case_id: str,
+    payload: AssignmentRequest,
+    user: User = Depends(require_permission(Permission.KYC_WRITE)),
+) -> dict[str, object]:
+    try:
+        return kyc_source.assign_case(case_id, user.id, user.name, payload.reason)
+    except KeyError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="KYC case not found",
+        ) from error
+
+
 @app.get("/api/feature-flags")
 def list_feature_flags(
     _: User = Depends(require_permission(Permission.FEATURE_FLAGS_READ)),
@@ -85,10 +107,10 @@ def list_feature_flags(
 def update_feature_flag(
     flag_id: str,
     payload: FeatureFlagUpdate,
-    _: User = Depends(require_permission(Permission.FEATURE_FLAGS_WRITE)),
+    user: User = Depends(require_permission(Permission.FEATURE_FLAGS_WRITE)),
 ) -> dict[str, object]:
     try:
-        return flag_provider.set_flag(flag_id, payload.enabled)
+        return flag_provider.set_flag(flag_id, payload.enabled, user.name, payload.reason)
     except KeyError as error:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -104,6 +126,26 @@ def list_refunds(
         "summary": payments_provider.refund_summary(),
         "items": payments_provider.list_refunds(),
     }
+
+
+@app.post("/api/refunds/{refund_id}/assign")
+def assign_refund(
+    refund_id: str,
+    payload: AssignmentRequest,
+    user: User = Depends(require_permission(Permission.REFUNDS_WRITE)),
+) -> dict[str, object]:
+    try:
+        return payments_provider.assign_refund(
+            refund_id,
+            user.id,
+            user.name,
+            payload.reason,
+        )
+    except KeyError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Refund not found",
+        ) from error
 
 
 @app.post("/api/refunds/{refund_id}/approve")
