@@ -1770,6 +1770,10 @@ tbody tr:hover {
   font-size: 9px;
 }
 
+.role-save-error {
+  margin: 0 23px 17px;
+}
+
 .modal-warning {
   display: flex;
   align-items: center;

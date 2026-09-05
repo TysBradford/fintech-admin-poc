@@ -871,12 +871,19 @@ function RefundsPanel({
   );
 }
 
-function PeoplePanel({ user }: { user: User }) {
+function PeoplePanel({
+  user,
+  onCurrentUserChange,
+}: {
+  user: User;
+  onCurrentUserChange: (user: User) => void;
+}) {
   const [users, setUsers] = useState<User[]>([]);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [draftRoles, setDraftRoles] = useState<Role[]>([]);
   const [reason, setReason] = useState("");
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
   const canWrite = user.permissions.includes("users:write");
 
   useEffect(() => {
@@ -888,6 +895,7 @@ function PeoplePanel({ user }: { user: User }) {
     setSelectedUser(target);
     setDraftRoles(target.roles);
     setReason("");
+    setSaveError("");
   }
 
   function toggleRole(role: Role) {
@@ -902,17 +910,34 @@ function PeoplePanel({ user }: { user: User }) {
     const trimmedReason = reason.trim();
     if (!selectedUser || draftRoles.length === 0 || trimmedReason.length < 3) return;
     setSaving(true);
-    const updated = await api.updateRoles(
-      user.id,
-      selectedUser.id,
-      draftRoles,
-      trimmedReason,
-    );
-    setUsers((current) =>
-      current.map((item) => (item.id === updated.id ? updated : item)),
-    );
-    setSelectedUser(null);
-    setSaving(false);
+    setSaveError("");
+    try {
+      const updated = await api.updateRoles(
+        user.id,
+        selectedUser.id,
+        draftRoles,
+        trimmedReason,
+      );
+      setUsers((current) =>
+        current.map((item) => (item.id === updated.id ? updated : item)),
+      );
+      if (updated.id === user.id) {
+        onCurrentUserChange(updated);
+      }
+      setSelectedUser(null);
+    } catch (caughtError) {
+      setSaveError(
+        caughtError instanceof Error
+          ? caughtError.message
+          : "The role change could not be completed.",
+      );
+      const refreshedUser = await api.currentUser(user.id).catch(() => null);
+      if (refreshedUser) {
+        onCurrentUserChange(refreshedUser);
+      }
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -1004,6 +1029,7 @@ function PeoplePanel({ user }: { user: User }) {
               <AlertTriangle size={17} />
               Role changes take effect immediately and are written to the audit log.
             </div>
+            {saveError && <div className="form-error role-save-error">{saveError}</div>}
             <div className="modal-actions">
               <button className="secondary-button" onClick={() => setSelectedUser(null)}>Cancel</button>
               <button
@@ -1096,6 +1122,14 @@ export default function App() {
     setActiveFlagCount(null);
   }
 
+  function updateCurrentUser(updatedUser: User) {
+    setUser(updatedUser);
+    const activeItem = NAV_ITEMS.find((item) => item.id === active);
+    if (!hasPermission(updatedUser, activeItem?.permission)) {
+      setActive("overview");
+    }
+  }
+
   if (!user) {
     return <SignIn onSignIn={(id) => void signIn(id)} loading={loading} error={error} />;
   }
@@ -1137,7 +1171,9 @@ export default function App() {
         {active === "refunds" && (
           <RefundsPanel user={user} onDataChange={setRefundData} />
         )}
-        {active === "people" && <PeoplePanel user={user} />}
+        {active === "people" && (
+          <PeoplePanel user={user} onCurrentUserChange={updateCurrentUser} />
+        )}
       </main>
     </div>
   );
