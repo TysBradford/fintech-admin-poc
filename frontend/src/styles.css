@@ -140,7 +140,7 @@ h3,
   display: inline-block;
   margin-bottom: 12px;
   color: #506078;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.13em;
   text-transform: uppercase;
@@ -195,7 +195,7 @@ h3,
 
 .signin-assurance span {
   color: #9fb0c5;
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .signin-panel {
@@ -217,7 +217,7 @@ h3,
   border-radius: 100px;
   color: #64748a;
   background: #fff;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 600;
   letter-spacing: 0.03em;
 }
@@ -297,7 +297,7 @@ h3,
   display: flex;
   flex-direction: column;
   gap: 2px;
-  font-size: 11px;
+  font-size: 13px;
   line-height: 1.45;
 }
 
@@ -345,7 +345,7 @@ h3,
   border-radius: 50%;
   color: white;
   background: #66778b;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.03em;
 }
@@ -353,7 +353,7 @@ h3,
 .avatar--small {
   width: 32px;
   height: 32px;
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .persona-details {
@@ -364,13 +364,13 @@ h3,
 }
 
 .persona-details strong {
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .persona-details span {
   overflow: hidden;
   color: #778497;
-  font-size: 10px;
+  font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -403,7 +403,7 @@ h3,
   border-radius: 8px;
   color: white;
   background: #244bc6;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
   transition: background 150ms, transform 150ms;
 }
@@ -420,7 +420,7 @@ h3,
 .signin-footnote {
   margin-top: 13px;
   color: #8994a3;
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.5;
   text-align: center;
 }
@@ -428,7 +428,7 @@ h3,
 .legal {
   margin-top: 20px;
   color: #919baa;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .form-error {
@@ -437,7 +437,7 @@ h3,
   border-radius: 7px;
   color: #9d2d35;
   background: #fff0f1;
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .app-shell {
@@ -477,7 +477,7 @@ h3,
   display: block;
   padding: 0 11px 9px;
   color: #657991;
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -499,7 +499,7 @@ h3,
   border-radius: 7px;
   color: #9eafc2;
   background: transparent;
-  font-size: 12px;
+  font-size: 14px;
   text-align: left;
   transition: background 150ms, color 150ms;
 }
@@ -525,7 +525,7 @@ h3,
   border-radius: 10px;
   color: #d6e0ec;
   background: rgba(255, 255, 255, 0.11);
-  font-size: 9px;
+  font-size: 11px;
   text-align: center;
 }
 
@@ -552,12 +552,12 @@ h3,
 
 .sidebar-security strong {
   color: #cbd7e4;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .sidebar-security span {
   color: #73879d;
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .sidebar-user {
@@ -579,7 +579,7 @@ h3,
 .sidebar-user-copy strong {
   overflow: hidden;
   color: #e0e7ef;
-  font-size: 10px;
+  font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -587,7 +587,7 @@ h3,
 .sidebar-user-copy span {
   overflow: hidden;
   color: #74879d;
-  font-size: 8px;
+  font-size: 10px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -608,7 +608,7 @@ h3,
   border-bottom: 1px solid #d8e4ee;
   color: #526b83;
   background: #f2f7fb;
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 650;
   letter-spacing: 0.02em;
 }
@@ -637,7 +637,7 @@ h3,
 .page-title p {
   margin-top: 2px;
   color: #7a8797;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .topbar-actions {
@@ -671,7 +671,7 @@ h3,
   outline: 0;
   color: #23364c;
   background: transparent;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .global-search kbd {
@@ -680,7 +680,7 @@ h3,
   border-radius: 4px;
   color: #96a0ad;
   background: white;
-  font-size: 8px;
+  font-size: 10px;
 }
 
 .icon-button {
@@ -761,7 +761,7 @@ h3,
 .welcome-banner p {
   margin-top: 5px;
   color: #728093;
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .access-chip {
@@ -773,7 +773,7 @@ h3,
   border-radius: 7px;
   color: #2d6359;
   background: #f3faf7;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 600;
 }
 
@@ -816,7 +816,7 @@ h3,
 
 .stat-card span {
   color: #748194;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 500;
 }
 
@@ -830,7 +830,7 @@ h3,
 
 .stat-card small {
   color: #8a95a3;
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .content-grid {
@@ -864,7 +864,7 @@ h3,
 .panel-header p {
   margin-top: 3px;
   color: #84909f;
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .text-button {
@@ -875,7 +875,7 @@ h3,
   border: 0;
   color: #3157d5;
   background: transparent;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 600;
 }
 
@@ -922,13 +922,13 @@ h3,
 
 .activity-copy strong {
   color: #26384d;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .activity-copy span {
   overflow: hidden;
   color: #8994a2;
-  font-size: 9px;
+  font-size: 11px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -945,7 +945,7 @@ h3,
   width: fit-content;
   padding: 4px 7px;
   border-radius: 100px;
-  font-size: 8px;
+  font-size: 10px;
   font-style: normal;
   font-weight: 700;
   white-space: nowrap;
@@ -998,12 +998,12 @@ h3,
 
 .workspace-list strong {
   color: #26384d;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .workspace-list small {
   color: #929ca8;
-  font-size: 8px;
+  font-size: 10px;
 }
 
 .workspace-list button > svg {
@@ -1017,7 +1017,7 @@ h3,
   justify-content: center;
   gap: 10px;
   color: #718095;
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .spinner {
@@ -1059,7 +1059,7 @@ h3,
   border-radius: 5px;
   color: #728094;
   background: transparent;
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 600;
 }
 
@@ -1087,7 +1087,7 @@ h3,
   justify-content: center;
   gap: 7px;
   border-radius: 7px;
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 600;
 }
 
@@ -1131,7 +1131,7 @@ h3,
   border-radius: 5px;
   color: #69788c;
   background: #f2f4f6;
-  font-size: 8px;
+  font-size: 10px;
   font-weight: 600;
 }
 
@@ -1150,7 +1150,7 @@ th {
   border-bottom: 1px solid #e4e8ec;
   color: #8490a0;
   background: #fafbfc;
-  font-size: 8px;
+  font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -1160,7 +1160,7 @@ td {
   padding: 12px 14px;
   border-bottom: 1px solid #edf0f2;
   color: #526176;
-  font-size: 9px;
+  font-size: 11px;
   white-space: nowrap;
 }
 
@@ -1170,7 +1170,7 @@ tbody tr:hover {
 
 .record-id {
   color: #3157d5;
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .customer-cell {
@@ -1184,7 +1184,7 @@ tbody tr:hover {
   height: 29px;
   color: #506580;
   background: #e9eef3;
-  font-size: 8px;
+  font-size: 10px;
 }
 
 .customer-cell > span:last-child {
@@ -1195,12 +1195,12 @@ tbody tr:hover {
 
 .customer-cell strong {
   color: #293c53;
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .customer-cell small {
   color: #909aa7;
-  font-size: 8px;
+  font-size: 10px;
 }
 
 .risk--high { color: #ad343c; background: #fff0f1; }
@@ -1212,7 +1212,7 @@ tbody tr:hover {
   align-items: center;
   gap: 9px;
   color: #7b8898;
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .environment-picker button {
@@ -1224,7 +1224,7 @@ tbody tr:hover {
   border-radius: 7px;
   color: #30435b;
   background: white;
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 600;
 }
 
@@ -1261,7 +1261,7 @@ tbody tr:hover {
 
 .flag-summary span {
   color: #8490a0;
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .flag-summary .flag-summary-note {
@@ -1328,7 +1328,7 @@ tbody tr:hover {
 
 .flag-name strong {
   color: #263b53;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .environment-tag {
@@ -1336,7 +1336,7 @@ tbody tr:hover {
   border-radius: 4px;
   color: #397063;
   background: #ebf7f3;
-  font-size: 7px;
+  font-size: 9px;
   font-weight: 700;
   text-transform: uppercase;
 }
@@ -1349,7 +1349,7 @@ tbody tr:hover {
 .flag-copy p {
   margin-top: 5px;
   color: #7e8b9a;
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .flag-meta {
@@ -1358,7 +1358,7 @@ tbody tr:hover {
   gap: 14px;
   margin-top: 8px;
   color: #929da9;
-  font-size: 8px;
+  font-size: 10px;
 }
 
 .code-label {
@@ -1374,7 +1374,7 @@ tbody tr:hover {
   align-items: center;
   gap: 9px;
   color: #657388;
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 600;
 }
 
@@ -1423,7 +1423,7 @@ tbody tr:hover {
   color: #1c6355;
   background: #f2faf7;
   box-shadow: 0 10px 30px rgba(26, 51, 72, 0.12);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .stat-grid--refunds {
@@ -1471,13 +1471,13 @@ tbody tr:hover {
 .refund-customer strong,
 .refund-amount strong {
   color: #273b53;
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .refund-customer span,
 .refund-amount span {
   color: #8b96a3;
-  font-size: 8px;
+  font-size: 10px;
 }
 
 .refund-amount {
@@ -1516,7 +1516,7 @@ tbody tr:hover {
 .policy-card > p {
   margin: 7px 0 18px;
   color: #7d8999;
-  font-size: 9px;
+  font-size: 11px;
   line-height: 1.55;
 }
 
@@ -1530,12 +1530,12 @@ tbody tr:hover {
 
 .policy-rule span {
   color: #7f8b9a;
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .policy-rule strong {
   color: #2f4258;
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .policy-card .text-button {
@@ -1576,7 +1576,7 @@ tbody tr:hover {
 .admin-intro p {
   margin-top: 3px;
   color: #84909f;
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .people-list {
@@ -1605,13 +1605,13 @@ tbody tr:hover {
 
 .person-main strong {
   color: #273b53;
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .person-main span,
 .person-department {
   color: #84909f;
-  font-size: 8px;
+  font-size: 10px;
 }
 
 .role-tags {
@@ -1625,7 +1625,7 @@ tbody tr:hover {
   border-radius: 5px;
   color: #4a5c73;
   background: #f0f3f5;
-  font-size: 7px;
+  font-size: 9px;
   font-style: normal;
   font-weight: 600;
 }
@@ -1672,7 +1672,7 @@ tbody tr:hover {
 .modal-header p {
   margin-top: 3px;
   color: #84909f;
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .role-options {
@@ -1723,12 +1723,12 @@ tbody tr:hover {
 
 .role-option strong {
   color: #293d54;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .role-option small {
   color: #84909f;
-  font-size: 8px;
+  font-size: 10px;
 }
 
 .modal-warning {
@@ -1740,7 +1740,7 @@ tbody tr:hover {
   border-radius: 7px;
   color: #8b5b17;
   background: #fff6e9;
-  font-size: 8px;
+  font-size: 10px;
 }
 
 .modal-actions {
