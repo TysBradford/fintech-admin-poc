@@ -1912,3 +1912,24 @@ tbody tr:hover {
     display: none;
   }
 }
+
+@media (max-width: 360px) {
+  .signin-panel {
+    padding-inline: 12px;
+  }
+
+  .signin-card {
+    padding-inline: 16px;
+  }
+
+  .persona-option {
+    gap: 8px;
+    padding-inline: 10px;
+  }
+
+  .microsoft-button {
+    gap: 7px;
+    padding-inline: 10px;
+    white-space: nowrap;
+  }
+}
