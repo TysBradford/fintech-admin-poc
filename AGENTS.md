@@ -68,14 +68,26 @@ what changes state. Then:
 
 ## 4. Required checks before opening a PR
 
+Commit hooks enforce these rules automatically. Install them once per clone with
+`npm run hooks:install`; they run the guardrails in `scripts/checks/` plus lint and type
+checks on every commit, and the test suites and build on every push. The same checks run
+in CI (`.github/workflows/pr-checks.yml`), so a commit that the hooks reject will not
+land as a green PR either — fix the code, never bypass the hook.
+
+When a hook fails, read its message: each one names the rule and how to fix it. The
+`protected-files` hook refuses changes to auth, config, CI, hooks, and dependency
+manifests unless `PROTECTED_CHANGE_REASON="<why>"` is set on the commit *and* the request
+was about those files. Matching PRs need the `security-review` label from a maintainer.
+
 Run all of these from the repository root and make sure they pass:
 
 ```bash
+npm run check
 npm run lint
 npm run typecheck
 npm run build
 poetry --directory backend run ruff check .
-poetry --directory backend run mypy app
+poetry --directory backend run mypy --config-file backend/pyproject.toml backend/app
 poetry --directory backend run pytest
 ```
 
@@ -86,7 +98,8 @@ Add tests for any change to authorization, masking, refunds, or audit behaviour.
 
 ## 5. Pull request expectations
 
-Every PR description must state:
+Use the template in `.github/pull_request_template.md`; CI rejects descriptions that
+are missing any of its sections. Every PR description must state:
 
 - what changed and why, in language the requester can follow;
 - whether any data-security-relevant surface was touched (auth, roles, permissions,
