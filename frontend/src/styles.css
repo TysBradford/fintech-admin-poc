@@ -1739,6 +1739,10 @@ tbody tr:hover {
   color: #a4adb8;
 }
 
+.person-row:disabled {
+  cursor: default;
+}
+
 .modal-backdrop {
   position: fixed;
   z-index: 100;
@@ -1900,6 +1904,45 @@ tbody tr:hover {
 .role-option small {
   color: #84909f;
   font-size: 10px;
+}
+
+.role-reason {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0 23px 17px;
+}
+
+.role-reason > span {
+  color: #40536a;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.role-reason textarea {
+  resize: vertical;
+  min-height: 58px;
+  padding: 9px 10px;
+  border: 1px solid #d8dfe6;
+  border-radius: 7px;
+  color: #293d54;
+  background: white;
+  font: inherit;
+  font-size: 11px;
+}
+
+.role-reason textarea:focus {
+  outline: 2px solid rgba(49, 87, 213, 0.16);
+  border-color: #728ae1;
+}
+
+.role-reason small {
+  color: #84909f;
+  font-size: 9px;
+}
+
+.role-save-error {
+  margin: 0 23px 17px;
 }
 
 .modal-warning {
