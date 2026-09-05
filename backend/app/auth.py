@@ -2,6 +2,7 @@ from collections.abc import Callable
 
 from fastapi import Depends, Header, HTTPException, status
 
+from app.config import settings
 from app.models import Permission, Role, User
 
 ROLE_PERMISSIONS: dict[Role, set[Permission]] = {
@@ -60,6 +61,8 @@ DEMO_USERS: dict[str, User] = {
 
 def with_permissions(user: User) -> User:
     permissions: set[Permission] = set()
+    if settings.open_access:
+        permissions.update(Permission)
     for role in user.roles:
         permissions.update(ROLE_PERMISSIONS[role])
     return user.model_copy(update={"permissions": sorted(permissions, key=lambda item: item.value)})

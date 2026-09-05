@@ -17,9 +17,12 @@ def test_compliance_user_can_access_kyc() -> None:
     assert response.json()[0]["id"] == "KYC-1048"
 
 
-def test_compliance_user_cannot_access_feature_flags() -> None:
+def test_open_access_grants_every_user_all_permissions() -> None:
     response = client.get("/api/feature-flags", headers={"X-Demo-User": "amina"})
-    assert response.status_code == 403
+    assert response.status_code == 200
+
+    me = client.get("/api/auth/me", headers={"X-Demo-User": "amina"})
+    assert "users:write" in me.json()["permissions"]
 
 
 def test_super_admin_can_update_roles() -> None:

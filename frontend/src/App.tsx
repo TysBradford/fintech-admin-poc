@@ -181,8 +181,8 @@ function SignIn({
         <div className="signin-assurance">
           <ShieldCheck size={22} />
           <div>
-            <strong>Built around least privilege</strong>
-            <span>Every view and action is governed by role-based access.</span>
+            <strong>Access restrictions disabled</strong>
+            <span>Open access is enabled: every identity can use all views and actions.</span>
           </div>
         </div>
       </section>
@@ -358,7 +358,7 @@ function Sidebar({
           <ShieldCheck size={18} />
           <div>
             <strong>Secure session</strong>
-            <span>Role policy applied</span>
+            <span>Open access enabled</span>
           </div>
         </div>
 
@@ -557,7 +557,7 @@ function Overview({
           <div className="panel-header">
             <div>
               <h3>Your workspace</h3>
-              <p>Access based on your assigned roles</p>
+              <p>All views are available to every signed-in user</p>
             </div>
           </div>
           <div className="workspace-list">

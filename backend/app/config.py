@@ -5,6 +5,7 @@ class Settings(BaseSettings):
     app_env: str = "development"
     allowed_origins: str = "http://localhost:5173"
     auth_mode: str = "demo"
+    open_access: bool = True
     entra_tenant_id: str = ""
     entra_client_id: str = ""
 
