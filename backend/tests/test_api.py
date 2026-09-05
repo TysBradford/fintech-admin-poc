@@ -34,6 +34,21 @@ def test_compliance_user_cannot_access_feature_flags() -> None:
     assert response.status_code == 403
 
 
+def test_onboarding_flag_can_be_toggled() -> None:
+    flags = client.get("/api/feature-flags", headers={"X-Demo-User": "leo"})
+    assert flags.status_code == 200
+    flag = next(item for item in flags.json() if item["id"] == "new-user-onboarding")
+    assert flag["enabled"] is False
+
+    response = client.put(
+        "/api/feature-flags/new-user-onboarding",
+        headers={"X-Demo-User": "leo"},
+        json={"enabled": True, "reason": "Begin onboarding rollout"},
+    )
+    assert response.status_code == 200
+    assert response.json()["enabled"] is True
+
+
 def test_feature_flag_change_records_actor_and_reason() -> None:
     response = client.put(
         "/api/feature-flags/home-balance-insights",

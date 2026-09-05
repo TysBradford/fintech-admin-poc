@@ -603,6 +603,28 @@ class DemoFeatureFlagProvider:
                     },
                 ],
             },
+            {
+                "id": "new-user-onboarding",
+                "name": "New user onboarding flow",
+                "description": "Show the redesigned onboarding flow to newly registered users.",
+                "enabled": False,
+                "environment": "Production",
+                "rollout": "0%",
+                "owner": "Growth",
+                "owner_contact": "Leo Martins",
+                "flag_type": "Release",
+                "risk": "Standard",
+                "expires": "No expiry",
+                "last_changed": "Just now",
+                "change_ticket": "GROW-702",
+                "audit": [
+                    {
+                        "action": "Flag created for onboarding launch",
+                        "actor": "Leo Martins",
+                        "at": "Just now",
+                    },
+                ],
+            },
         ]
 
     def list_flags(self) -> list[dict[str, object]]:
