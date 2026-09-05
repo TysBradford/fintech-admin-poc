@@ -6,9 +6,14 @@
     "frontend"
   ],
   "scripts": {
-    "dev": "npm --workspace frontend run dev",
+    "dev": "concurrently --kill-others-on-fail --names api,web --prefix-colors blue,magenta \"npm run dev:api\" \"npm run dev:web\"",
+    "dev:api": "poetry --directory backend run uvicorn app.main:app --reload --host 0.0.0.0",
+    "dev:web": "npm --workspace frontend run dev",
     "build": "npm --workspace frontend run build",
     "lint": "npm --workspace frontend run lint",
     "typecheck": "npm --workspace frontend run typecheck"
+  },
+  "devDependencies": {
+    "concurrently": "9.2.4"
   }
 }
