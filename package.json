@@ -11,7 +11,9 @@
     "dev:web": "npm --workspace frontend run dev",
     "build": "npm --workspace frontend run build",
     "lint": "npm --workspace frontend run lint",
-    "typecheck": "npm --workspace frontend run typecheck"
+    "typecheck": "npm --workspace frontend run typecheck",
+    "check": "python3 scripts/checks/run.py --all",
+    "hooks:install": "poetry --directory backend run pre-commit install --install-hooks"
   },
   "devDependencies": {
     "concurrently": "9.2.4"

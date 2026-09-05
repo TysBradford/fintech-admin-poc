@@ -8,7 +8,9 @@ import {
   CircleDollarSign,
   ClipboardCheck,
   Clock3,
+  FileText,
   Flag,
+  History,
   LayoutDashboard,
   LockKeyhole,
   LogOut,
@@ -16,9 +18,11 @@ import {
   MoreHorizontal,
   Search,
   ShieldCheck,
-  SlidersHorizontal,
+  ShieldAlert,
   Sparkles,
+  Timer,
   UserCog,
+  UserRoundCheck,
   Users,
   X,
 } from "lucide-react";
@@ -321,7 +325,7 @@ function Sidebar({
                 >
                   <Icon size={18} />
                   <span>{item.label}</span>
-                  {item.id === "kyc" && <span className="nav-count">4</span>}
+                  {item.id === "kyc" && <span className="nav-count">18</span>}
                   {item.id === "refunds" && pendingRefundCount !== null && (
                     <span className="nav-count">{pendingRefundCount}</span>
                   )}
@@ -473,7 +477,7 @@ function Overview({
 
       <section className="stat-grid">
         {hasPermission(user, "kyc:read") && (
-          <StatCard label="KYC cases" value="4" detail="2 high priority" tone="blue" />
+          <StatCard label="KYC cases" value="18" detail="5 high priority" tone="blue" />
         )}
         {hasPermission(user, "refunds:read") && (
           <StatCard
@@ -518,7 +522,7 @@ function Overview({
                 </span>
                 <span className="activity-copy">
                   <strong>High-risk KYC case needs review</strong>
-                  <span>KYC-1048 · Document mismatch · 12 min ago</span>
+                  <span>KYC-1086 · Document mismatch · 12 min ago</span>
                 </span>
                 <span className="status status--danger">High risk</span>
                 <ArrowRight size={16} className="row-arrow" />
@@ -593,75 +597,258 @@ function LoadingPanel() {
 function KycPanel({ userId }: { userId: string }) {
   const [cases, setCases] = useState<KycCase[]>([]);
   const [loading, setLoading] = useState(true);
+  const [queue, setQueue] = useState<"all" | "mine" | "unassigned" | "escalated">("all");
+  const [search, setSearch] = useState("");
+  const [selectedCase, setSelectedCase] = useState<KycCase | null>(null);
+  const [notice, setNotice] = useState("");
 
   useEffect(() => {
     api.kycCases(userId).then(setCases).finally(() => setLoading(false));
   }, [userId]);
 
+  const filteredCases = cases.filter((item) => {
+    const matchesQueue =
+      queue === "all"
+      || (queue === "mine" && item.assignee_id === userId)
+      || (queue === "unassigned" && item.assignee_id === null)
+      || (queue === "escalated" && item.status === "Escalated");
+    const query = search.trim().toLowerCase();
+    const matchesSearch =
+      query.length === 0
+      || `${item.id} ${item.customer} ${item.customer_id} ${item.reason}`
+        .toLowerCase()
+        .includes(query);
+    return matchesQueue && matchesSearch;
+  });
+  const highRiskCount = cases.filter((item) => item.risk === "High").length;
+  const breachedCount = cases.filter((item) => item.sla_state === "Breached").length;
+  const assignedToMe = cases.filter((item) => item.assignee_id === userId).length;
+  const unassignedCount = cases.filter((item) => item.assignee_id === null).length;
+
+  async function assignToMe(item: KycCase) {
+    const updated = await api.assignKycCase(userId, item.id);
+    setCases((current) =>
+      current.map((currentCase) => currentCase.id === updated.id ? updated : currentCase),
+    );
+    setSelectedCase(updated);
+    setNotice(`${updated.id} assigned to you. Audit event recorded.`);
+    window.setTimeout(() => setNotice(""), 3200);
+  }
+
   if (loading) return <LoadingPanel />;
 
   return (
     <div className="page-content">
+      {notice && <div className="toast"><Check size={16} /> {notice}</div>}
       <section className="module-toolbar">
         <div className="segmented-control">
-          <button className="is-active">Open <span>4</span></button>
-          <button>In review <span>1</span></button>
-          <button>Completed</button>
+          <button
+            className={queue === "all" ? "is-active" : ""}
+            onClick={() => setQueue("all")}
+          >
+            All open <span>{cases.length}</span>
+          </button>
+          <button
+            className={queue === "mine" ? "is-active" : ""}
+            onClick={() => setQueue("mine")}
+          >
+            My queue <span>{assignedToMe}</span>
+          </button>
+          <button
+            className={queue === "unassigned" ? "is-active" : ""}
+            onClick={() => setQueue("unassigned")}
+          >
+            Unassigned <span>{unassignedCount}</span>
+          </button>
+          <button
+            className={queue === "escalated" ? "is-active" : ""}
+            onClick={() => setQueue("escalated")}
+          >
+            Escalated <span>{cases.filter((item) => item.status === "Escalated").length}</span>
+          </button>
         </div>
         <div className="toolbar-actions">
-          <button className="secondary-button"><SlidersHorizontal size={16} /> Filter</button>
-          <button className="primary-button">Review next case <ArrowRight size={16} /></button>
+          <label className="inline-search queue-search">
+            <Search size={15} />
+            <input
+              placeholder="Search case or customer"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+            />
+          </label>
+          <button
+            className="primary-button"
+            onClick={() => setSelectedCase(
+              cases.find((item) => item.assignee_id === null && item.risk === "High")
+              ?? cases[0],
+            )}
+          >
+            Review next case <ArrowRight size={16} />
+          </button>
         </div>
       </section>
 
-      <section className="stat-grid stat-grid--compact">
-        <StatCard label="Awaiting review" value="4" detail="Oldest: 2 hours" tone="blue" />
-        <StatCard label="High risk" value="1" detail="Review immediately" tone="amber" />
-        <StatCard label="Reviewed today" value="18" detail="Median: 8 minutes" tone="green" />
+      <section className="stat-grid">
+        <StatCard label="Open cases" value={String(cases.length)} detail="Across all queues" tone="blue" />
+        <StatCard label="High risk" value={String(highRiskCount)} detail="1 unassigned" tone="amber" />
+        <StatCard label="SLA breached" value={String(breachedCount)} detail="Manager visibility" tone="purple" />
+        <StatCard label="Reviewed today" value="47" detail="Median: 11 minutes" tone="green" />
       </section>
 
       <section className="panel table-panel">
         <div className="panel-header panel-header--table">
           <div>
             <h3>Verification queue</h3>
-            <p>Customer identity checks requiring manual review</p>
+            <p>{filteredCases.length} customer and business checks requiring manual review</p>
           </div>
-          <span className="data-label"><LockKeyhole size={13} /> Sensitive fields masked</span>
+          <div className="control-labels">
+            <span className="data-label"><LockKeyhole size={13} /> Sensitive fields masked</span>
+            <span className="data-label"><History size={13} /> Actions audited</span>
+          </div>
         </div>
         <div className="table-scroll">
-          <table>
+          <table className="operations-table">
             <thead>
               <tr>
-                <th>Case</th>
-                <th>Customer</th>
-                <th>Risk</th>
-                <th>Review reason</th>
-                <th>Submitted</th>
+                <th>Customer / case</th>
+                <th>Risk signals</th>
+                <th>Submitted / SLA</th>
+                <th>Owner</th>
                 <th>Status</th>
                 <th aria-label="Actions" />
               </tr>
             </thead>
             <tbody>
-              {cases.map((item) => (
+              {filteredCases.map((item) => (
                 <tr key={item.id}>
-                  <td><strong className="record-id">{item.id}</strong></td>
                   <td>
                     <div className="customer-cell">
                       <span className="avatar avatar--table">{initials(item.customer)}</span>
-                      <span><strong>{item.customer}</strong><small>{item.country}</small></span>
+                      <span>
+                        <button className="record-link" onClick={() => setSelectedCase(item)}>
+                          {item.customer}
+                        </button>
+                        <small>{item.id} · {item.customer_id} · {item.entity_type} · {item.country}</small>
+                      </span>
                     </div>
                   </td>
-                  <td><span className={`risk risk--${item.risk.toLowerCase()}`}>{item.risk}</span></td>
-                  <td>{item.reason}</td>
-                  <td>{item.submitted}</td>
-                  <td><span className="status status--neutral">{item.status}</span></td>
-                  <td><button className="icon-button"><MoreHorizontal size={18} /></button></td>
+                  <td>
+                    <div className="signal-cell">
+                      <span className={`risk risk--${item.risk.toLowerCase()}`}>{item.risk}</span>
+                      <strong>{item.reason}</strong>
+                      <small>{item.signals.join(" · ")}</small>
+                    </div>
+                  </td>
+                  <td>
+                    <div className="sla-cell">
+                      <span>{item.submitted}</span>
+                      <small className={`sla-state sla-state--${item.sla_state.toLowerCase().replace(" ", "-")}`}>
+                        <Timer size={12} /> {item.sla}
+                      </small>
+                    </div>
+                  </td>
+                  <td>
+                    <span className={`assignee ${item.assignee_id === null ? "is-unassigned" : ""}`}>
+                      <UserRoundCheck size={14} /> {item.assignee}
+                    </span>
+                  </td>
+                  <td><span className={`status ${item.status === "Escalated" ? "status--danger" : "status--neutral"}`}>{item.status}</span></td>
+                  <td>
+                    <button
+                      className="icon-button"
+                      onClick={() => setSelectedCase(item)}
+                      aria-label={`Open ${item.id}`}
+                    >
+                      <MoreHorizontal size={18} />
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
+        <div className="table-footer">
+          <span>Showing {filteredCases.length} of {cases.length} open cases</span>
+          <span>Queue refreshed just now</span>
+        </div>
       </section>
+
+      {selectedCase && (
+        <div className="drawer-backdrop" role="presentation" onMouseDown={() => setSelectedCase(null)}>
+          <aside
+            className="detail-drawer"
+            role="dialog"
+            aria-modal="true"
+            aria-label={`KYC case ${selectedCase.id}`}
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <div className="drawer-header">
+              <div>
+                <span className="eyebrow">Manual review · {selectedCase.id}</span>
+                <h2>{selectedCase.customer}</h2>
+                <p>{selectedCase.customer_id} · {selectedCase.entity_type} · {selectedCase.country}</p>
+              </div>
+              <button className="icon-button" onClick={() => setSelectedCase(null)}><X size={19} /></button>
+            </div>
+
+            <div className="control-banner">
+              <ShieldAlert size={18} />
+              <div>
+                <strong>Controlled review</strong>
+                <span>Customer data is masked; every view and decision is recorded.</span>
+              </div>
+            </div>
+
+            <div className="detail-section">
+              <h3>Review context</h3>
+              <dl className="detail-grid">
+                <div><dt>Risk level</dt><dd><span className={`risk risk--${selectedCase.risk.toLowerCase()}`}>{selectedCase.risk}</span></dd></div>
+                <div><dt>Queue status</dt><dd>{selectedCase.status}</dd></div>
+                <div><dt>Primary reason</dt><dd>{selectedCase.reason}</dd></div>
+                <div><dt>SLA</dt><dd>{selectedCase.sla}</dd></div>
+                <div><dt>Owner</dt><dd>{selectedCase.assignee}</dd></div>
+                <div><dt>Submitted</dt><dd>{selectedCase.submitted}</dd></div>
+              </dl>
+            </div>
+
+            <div className="detail-section">
+              <h3>Risk signals</h3>
+              <div className="signal-list">
+                {selectedCase.signals.map((signal) => (
+                  <span key={signal}><AlertTriangle size={14} /> {signal}</span>
+                ))}
+              </div>
+            </div>
+
+            <div className="detail-section">
+              <div className="section-heading">
+                <h3>Audit history</h3>
+                <span>Append-only</span>
+              </div>
+              <div className="audit-timeline">
+                {selectedCase.audit.map((event, index) => (
+                  <div key={`${event.action}-${index}`}>
+                    <span className="audit-dot" />
+                    <p><strong>{event.action}</strong><small>{event.actor} · {event.at}</small></p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="drawer-actions">
+              <button className="secondary-button"><FileText size={16} /> View evidence</button>
+              <button
+                className="primary-button"
+                disabled={selectedCase.assignee_id === userId}
+                onClick={() => void assignToMe(selectedCase)}
+              >
+                <UserRoundCheck size={16} />
+                {selectedCase.assignee_id === userId ? "Assigned to you" : "Assign to me"}
+              </button>
+            </div>
+          </aside>
+        </div>
+      )}
     </div>
   );
 }
@@ -676,6 +863,10 @@ function FeatureFlagsPanel({
   const [flags, setFlags] = useState<FeatureFlag[]>([]);
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState("");
+  const [search, setSearch] = useState("");
+  const [selectedFlag, setSelectedFlag] = useState<FeatureFlag | null>(null);
+  const [pendingFlag, setPendingFlag] = useState<FeatureFlag | null>(null);
+  const [changeReason, setChangeReason] = useState("");
   const canWrite = user.permissions.includes("feature_flags:write");
 
   useEffect(() => {
@@ -689,15 +880,31 @@ function FeatureFlagsPanel({
 
   async function toggleFlag(flag: FeatureFlag) {
     if (!canWrite) return;
-    const updated = await api.updateFeatureFlag(user.id, flag.id, !flag.enabled);
+    const updated = await api.updateFeatureFlag(
+      user.id,
+      flag.id,
+      !flag.enabled,
+      changeReason.trim(),
+    );
     const nextFlags = flags.map((item) => (item.id === flag.id ? updated : item));
     setFlags(nextFlags);
+    setSelectedFlag((current) => current?.id === updated.id ? updated : current);
+    setPendingFlag(null);
+    setChangeReason("");
     onActiveCountChange(nextFlags.filter((item) => item.enabled).length);
     setNotice(`${flag.name} ${updated.enabled ? "enabled" : "disabled"}. Audit event recorded.`);
     window.setTimeout(() => setNotice(""), 3200);
   }
 
   if (loading) return <LoadingPanel />;
+
+  const filteredFlags = flags.filter((flag) => {
+    const query = search.trim().toLowerCase();
+    return query.length === 0
+      || `${flag.name} ${flag.id} ${flag.owner} ${flag.owner_contact}`
+        .toLowerCase()
+        .includes(query);
+  });
 
   return (
     <div className="page-content">
@@ -713,7 +920,7 @@ function FeatureFlagsPanel({
       <section className="flag-summary">
         <div><strong>{flags.length}</strong><span>Total flags</span></div>
         <div><strong>{flags.filter((flag) => flag.enabled).length}</strong><span>Enabled</span></div>
-        <div><strong>{flags.filter((flag) => flag.environment === "Staging").length}</strong><span>Staged rollout</span></div>
+        <div><strong>{flags.filter((flag) => flag.risk !== "Standard").length}</strong><span>Elevated controls</span></div>
         <div className="flag-summary-note"><ShieldCheck size={18} /><span>All changes require a reason and create an audit event.</span></div>
       </section>
 
@@ -725,11 +932,15 @@ function FeatureFlagsPanel({
           </div>
           <label className="inline-search">
             <Search size={15} />
-            <input placeholder="Search flags" />
+            <input
+              placeholder="Search flags"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+            />
           </label>
         </div>
         <div className="flags-list">
-          {flags.map((flag) => (
+          {filteredFlags.map((flag) => (
             <article className="flag-row" key={flag.id}>
               <div className={`flag-icon ${flag.enabled ? "is-enabled" : ""}`}><Flag size={19} /></div>
               <div className="flag-copy">
@@ -739,27 +950,140 @@ function FeatureFlagsPanel({
                 </div>
                 <p>{flag.description}</p>
                 <div className="flag-meta">
-                  <span>Owner: {flag.owner}</span>
+                  <span>{flag.flag_type}</span>
+                  <span>Owner: {flag.owner} · {flag.owner_contact}</span>
                   <span>Rollout: {flag.rollout}</span>
+                  <span>Changed: {flag.last_changed}</span>
                   <span className="code-label">{flag.id}</span>
                 </div>
+              </div>
+              <div className="flag-governance">
+                <span className={`risk-tag risk-tag--${flag.risk.toLowerCase()}`}>{flag.risk}</span>
+                <small>{flag.change_ticket}</small>
+                <small>Expires {flag.expires}</small>
               </div>
               <div className="flag-state">
                 <span>{flag.enabled ? "Enabled" : "Disabled"}</span>
                 <button
                   className={`toggle ${flag.enabled ? "is-on" : ""}`}
-                  onClick={() => void toggleFlag(flag)}
+                  onClick={() => {
+                    setPendingFlag(flag);
+                    setChangeReason("");
+                  }}
                   disabled={!canWrite}
                   aria-label={`${flag.enabled ? "Disable" : "Enable"} ${flag.name}`}
                 >
                   <i />
                 </button>
               </div>
-              <button className="icon-button"><MoreHorizontal size={18} /></button>
+              <button className="icon-button" onClick={() => setSelectedFlag(flag)}><MoreHorizontal size={18} /></button>
             </article>
           ))}
         </div>
+        <div className="table-footer">
+          <span>Showing {filteredFlags.length} of {flags.length} flags</span>
+          <span>Production changes are audit logged</span>
+        </div>
       </section>
+
+      {selectedFlag && (
+        <div className="drawer-backdrop" role="presentation" onMouseDown={() => setSelectedFlag(null)}>
+          <aside
+            className="detail-drawer"
+            role="dialog"
+            aria-modal="true"
+            aria-label={`Feature flag ${selectedFlag.name}`}
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <div className="drawer-header">
+              <div>
+                <span className="eyebrow">{selectedFlag.flag_type} · {selectedFlag.environment}</span>
+                <h2>{selectedFlag.name}</h2>
+                <p>{selectedFlag.id}</p>
+              </div>
+              <button className="icon-button" onClick={() => setSelectedFlag(null)}><X size={19} /></button>
+            </div>
+            <div className="control-banner">
+              <ShieldCheck size={18} />
+              <div>
+                <strong>{selectedFlag.risk} change control</strong>
+                <span>Changes require a reason and are attributed to the acting administrator.</span>
+              </div>
+            </div>
+            <div className="detail-section">
+              <h3>Configuration</h3>
+              <dl className="detail-grid">
+                <div><dt>Status</dt><dd>{selectedFlag.enabled ? "Enabled" : "Disabled"}</dd></div>
+                <div><dt>Rollout</dt><dd>{selectedFlag.rollout}</dd></div>
+                <div><dt>Owning team</dt><dd>{selectedFlag.owner}</dd></div>
+                <div><dt>Technical owner</dt><dd>{selectedFlag.owner_contact}</dd></div>
+                <div><dt>Expiry</dt><dd>{selectedFlag.expires}</dd></div>
+                <div><dt>Change ticket</dt><dd>{selectedFlag.change_ticket}</dd></div>
+              </dl>
+            </div>
+            <div className="detail-section">
+              <div className="section-heading"><h3>Audit history</h3><span>Append-only</span></div>
+              <div className="audit-timeline">
+                {selectedFlag.audit.map((event, index) => (
+                  <div key={`${event.action}-${index}`}>
+                    <span className="audit-dot" />
+                    <p><strong>{event.action}</strong><small>{event.actor} · {event.at}</small></p>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="drawer-actions">
+              <button className="secondary-button"><FileText size={16} /> Open {selectedFlag.change_ticket}</button>
+              <button
+                className="primary-button"
+                disabled={!canWrite}
+                onClick={() => {
+                  setPendingFlag(selectedFlag);
+                  setChangeReason("");
+                }}
+              >
+                <Flag size={16} /> {selectedFlag.enabled ? "Disable flag" : "Enable flag"}
+              </button>
+            </div>
+          </aside>
+        </div>
+      )}
+
+      {pendingFlag && (
+        <div className="modal-backdrop" role="presentation" onMouseDown={() => setPendingFlag(null)}>
+          <section className="modal change-reason-modal" role="dialog" aria-modal="true" onMouseDown={(event) => event.stopPropagation()}>
+            <div className="modal-header">
+              <div>
+                <span className="eyebrow">Controlled production change</span>
+                <h2>{pendingFlag.enabled ? "Disable" : "Enable"} {pendingFlag.name}</h2>
+                <p>{pendingFlag.change_ticket} · {pendingFlag.risk} risk</p>
+              </div>
+              <button className="icon-button" onClick={() => setPendingFlag(null)}><X size={19} /></button>
+            </div>
+            <label className="reason-field">
+              <span>Reason for change</span>
+              <textarea
+                autoFocus
+                rows={4}
+                placeholder="Describe why this change is required"
+                value={changeReason}
+                onChange={(event) => setChangeReason(event.target.value)}
+              />
+              <small>This reason will be included in the append-only audit event.</small>
+            </label>
+            <div className="modal-actions">
+              <button className="secondary-button" onClick={() => setPendingFlag(null)}>Cancel</button>
+              <button
+                className="primary-button"
+                disabled={changeReason.trim().length < 3}
+                onClick={() => void toggleFlag(pendingFlag)}
+              >
+                Confirm change
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
     </div>
   );
 }
@@ -773,6 +1097,10 @@ function RefundsPanel({
 }) {
   const [data, setData] = useState<RefundResponse | null>(null);
   const [notice, setNotice] = useState("");
+  const [queue, setQueue] = useState<"all" | "mine" | "high-value" | "completed">("all");
+  const [operationalFilter, setOperationalFilter] = useState<"all" | "breached" | "unassigned">("all");
+  const [search, setSearch] = useState("");
+  const [selectedRefund, setSelectedRefund] = useState<RefundResponse["items"][number] | null>(null);
 
   useEffect(() => {
     api.refunds(user.id).then((response) => {
@@ -781,11 +1109,18 @@ function RefundsPanel({
     });
   }, [onDataChange, user.id]);
 
-  async function approve(refundId: string) {
-    const updated = await api.approveRefund(user.id, refundId);
+  async function refreshData(selectedId?: string) {
     const nextData = await api.refunds(user.id);
     setData(nextData);
     onDataChange(nextData);
+    if (selectedId) {
+      setSelectedRefund(nextData.items.find((item) => item.id === selectedId) ?? null);
+    }
+  }
+
+  async function approve(refundId: string) {
+    const updated = await api.approveRefund(user.id, refundId);
+    await refreshData(refundId);
     setNotice(
       updated.status === "Approved"
         ? `${updated.id} approved. Audit event recorded.`
@@ -794,7 +1129,40 @@ function RefundsPanel({
     window.setTimeout(() => setNotice(""), 3200);
   }
 
+  async function assignToMe(refundId: string) {
+    const updated = await api.assignRefund(user.id, refundId);
+    await refreshData(refundId);
+    setNotice(`${updated.id} assigned to you. Audit event recorded.`);
+    window.setTimeout(() => setNotice(""), 3200);
+  }
+
   if (!data) return <LoadingPanel />;
+
+  const filteredRefunds = data.items.filter((refund) => {
+    const isApproved = refund.status === "Approved";
+    const matchesQueue =
+      (queue === "all" && !isApproved)
+      || (queue === "mine" && refund.assignee_id === user.id && !isApproved)
+      || (queue === "high-value" && refund.required_approvals === 2 && !isApproved)
+      || (queue === "completed" && isApproved);
+    const matchesOperationalFilter =
+      operationalFilter === "all"
+      || (operationalFilter === "breached" && refund.sla_state === "Breached")
+      || (operationalFilter === "unassigned" && refund.assignee_id === null);
+    const query = search.trim().toLowerCase();
+    const matchesSearch =
+      query.length === 0
+      || `${refund.id} ${refund.customer} ${refund.customer_id} ${refund.reason}`
+        .toLowerCase()
+        .includes(query);
+    return matchesQueue && matchesOperationalFilter && matchesSearch;
+  });
+  const highValueCount = data.items.filter(
+    (refund) => refund.required_approvals === 2 && refund.status !== "Approved",
+  ).length;
+  const breachedCount = data.items.filter(
+    (refund) => refund.sla_state === "Breached" && refund.status !== "Approved",
+  ).length;
 
   return (
     <div className="page-content">
@@ -806,52 +1174,138 @@ function RefundsPanel({
         <StatCard label="Approval rate" value={data.summary.approval_rate} detail="Last 30 days" tone="purple" />
       </section>
 
-      <section className="content-grid content-grid--refunds">
-        <article className="panel table-panel">
-          <div className="panel-header panel-header--table">
-            <div>
-              <h3>Refund queue</h3>
-              <p>Requests awaiting investigation or approval</p>
-            </div>
-            <button className="secondary-button"><SlidersHorizontal size={16} /> Filters</button>
+      <section className="module-toolbar">
+        <div className="segmented-control">
+          <button className={queue === "all" ? "is-active" : ""} onClick={() => setQueue("all")}>
+            Open <span>{data.summary.pending_count}</span>
+          </button>
+          <button className={queue === "mine" ? "is-active" : ""} onClick={() => setQueue("mine")}>
+            My queue <span>{data.items.filter((item) => item.assignee_id === user.id && item.status !== "Approved").length}</span>
+          </button>
+          <button className={queue === "high-value" ? "is-active" : ""} onClick={() => setQueue("high-value")}>
+            Dual approval <span>{highValueCount}</span>
+          </button>
+          <button className={queue === "completed" ? "is-active" : ""} onClick={() => setQueue("completed")}>
+            Completed
+          </button>
+        </div>
+        <div className="toolbar-actions">
+          <label className="inline-search queue-search">
+            <Search size={15} />
+            <input
+              placeholder="Search refund or customer"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+            />
+          </label>
+          <select
+            className="control-select"
+            value={operationalFilter}
+            onChange={(event) => setOperationalFilter(event.target.value as typeof operationalFilter)}
+            aria-label="Filter refund operations queue"
+          >
+            <option value="all">All controls</option>
+            <option value="breached">SLA breached</option>
+            <option value="unassigned">Unassigned</option>
+          </select>
+        </div>
+      </section>
+
+      <section className="panel table-panel">
+        <div className="panel-header panel-header--table">
+          <div>
+            <h3>Refund operations queue</h3>
+            <p>{filteredRefunds.length} requests across card, transfer, and cash-withdrawal journeys</p>
           </div>
-          <div className="refund-list">
-            {data.items.map((refund) => {
+          <div className="control-labels">
+            <span className="data-label"><ShieldCheck size={13} /> {highValueCount} dual-control</span>
+            <span className="data-label"><Timer size={13} /> {breachedCount} SLA breached</span>
+          </div>
+        </div>
+        <div className="table-scroll">
+          <table className="operations-table refund-operations-table">
+            <thead>
+              <tr>
+                <th>Customer / request</th>
+                <th>Reason / channel</th>
+                <th>Value</th>
+                <th>Owner / SLA</th>
+                <th>Control status</th>
+                <th aria-label="Actions" />
+              </tr>
+            </thead>
+            <tbody>
+            {filteredRefunds.map((refund) => {
               const isApproved = refund.status === "Approved";
               const alreadyApproved = refund.approved_by.includes(user.id);
               const buttonLabel = isApproved
-                ? "Approved"
+                ? "View"
                 : alreadyApproved
-                  ? "Second approver required"
+                  ? "Awaiting peer"
                   : refund.approval_count > 0
-                    ? "Second review"
+                    ? "Second approval"
                     : "Review";
               return (
-                <div className="refund-row" key={refund.id}>
-                  <span className="refund-brand"><CircleDollarSign size={19} /></span>
-                  <div className="refund-customer">
-                    <strong>{refund.customer}</strong>
-                    <span>{refund.id} · {refund.reason}</span>
-                  </div>
-                  <div className="refund-amount">
-                    <strong>{refund.amount}</strong>
-                    <span>{refund.age} ago</span>
-                  </div>
-                  <span className={`status ${isApproved ? "status--success" : "status--warning"}`}>
-                    {isApproved ? "Approved" : refund.status}
-                  </span>
-                  <button
-                    className="small-button"
-                    onClick={() => void approve(refund.id)}
-                    disabled={isApproved || alreadyApproved}
-                  >
-                    {buttonLabel}
-                  </button>
-                </div>
+                <tr key={refund.id}>
+                  <td>
+                    <div className="customer-cell">
+                      <span className="refund-brand"><CircleDollarSign size={18} /></span>
+                      <span>
+                        <button className="record-link" onClick={() => setSelectedRefund(refund)}>
+                          {refund.customer}
+                        </button>
+                        <small>{refund.id} · {refund.customer_id} · {refund.age} ago</small>
+                      </span>
+                    </div>
+                  </td>
+                  <td>
+                    <div className="signal-cell">
+                      <strong>{refund.reason}</strong>
+                      <small>{refund.channel} · {refund.payment_method}</small>
+                    </div>
+                  </td>
+                  <td>
+                    <div className="refund-amount">
+                      <strong>{refund.amount}</strong>
+                      <span>{refund.required_approvals === 2 ? "Dual approval" : "Standard policy"}</span>
+                    </div>
+                  </td>
+                  <td>
+                    <div className="owner-sla-cell">
+                      <span className={`assignee ${refund.assignee_id === null ? "is-unassigned" : ""}`}>
+                        <UserRoundCheck size={14} /> {refund.assignee}
+                      </span>
+                      <small className={`sla-state sla-state--${refund.sla_state.toLowerCase().replace(" ", "-")}`}>
+                        <Timer size={12} /> {refund.sla}
+                      </small>
+                    </div>
+                  </td>
+                  <td>
+                    <div className="control-status">
+                      <span className={`status ${isApproved ? "status--success" : "status--warning"}`}>
+                        {refund.status}
+                      </span>
+                      <small>{refund.approval_count}/{refund.required_approvals} approvals</small>
+                    </div>
+                  </td>
+                  <td>
+                    <button className="small-button" onClick={() => setSelectedRefund(refund)}>
+                      {buttonLabel}
+                    </button>
+                  </td>
+                </tr>
               );
             })}
-          </div>
-        </article>
+            </tbody>
+          </table>
+        </div>
+        <div className="table-footer">
+          <span>Showing {filteredRefunds.length} of {data.items.length} requests</span>
+          <span>Payment details are partially masked</span>
+        </div>
+      </section>
+
+      <section className="governance-grid">
         <aside className="panel policy-card">
           <div className="policy-icon"><ShieldCheck size={22} /></div>
           <h3>Approval policy</h3>
@@ -866,7 +1320,104 @@ function RefundsPanel({
           </div>
           <button className="text-button">View policy <ArrowRight size={14} /></button>
         </aside>
+        <aside className="panel policy-card">
+          <div className="policy-icon policy-icon--amber"><History size={22} /></div>
+          <h3>Operational controls</h3>
+          <p>Assignments, evidence views, approvals, and policy overrides are retained for review.</p>
+          <div className="policy-rule"><span>Evidence retention</span><strong>7 years</strong></div>
+          <div className="policy-rule"><span>Override access</span><strong>Restricted</strong></div>
+          <button className="text-button">Open audit log <ArrowRight size={14} /></button>
+        </aside>
       </section>
+
+      {selectedRefund && (
+        <div className="drawer-backdrop" role="presentation" onMouseDown={() => setSelectedRefund(null)}>
+          <aside
+            className="detail-drawer"
+            role="dialog"
+            aria-modal="true"
+            aria-label={`Refund ${selectedRefund.id}`}
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <div className="drawer-header">
+              <div>
+                <span className="eyebrow">Refund review · {selectedRefund.id}</span>
+                <h2>{selectedRefund.customer}</h2>
+                <p>{selectedRefund.customer_id} · {selectedRefund.channel}</p>
+              </div>
+              <button className="icon-button" onClick={() => setSelectedRefund(null)}><X size={19} /></button>
+            </div>
+
+            <div className="control-banner">
+              <ShieldCheck size={18} />
+              <div>
+                <strong>{selectedRefund.required_approvals === 2 ? "Dual approval required" : "Standard approval policy"}</strong>
+                <span>{selectedRefund.approval_count} of {selectedRefund.required_approvals} approvals recorded. The requester cannot approve their own override.</span>
+              </div>
+            </div>
+
+            <div className="detail-section">
+              <h3>Request context</h3>
+              <dl className="detail-grid">
+                <div><dt>Amount</dt><dd>{selectedRefund.amount}</dd></div>
+                <div><dt>Status</dt><dd>{selectedRefund.status}</dd></div>
+                <div><dt>Reason</dt><dd>{selectedRefund.reason}</dd></div>
+                <div><dt>Payment method</dt><dd>{selectedRefund.payment_method}</dd></div>
+                <div><dt>Owner</dt><dd>{selectedRefund.assignee}</dd></div>
+                <div><dt>SLA</dt><dd>{selectedRefund.sla}</dd></div>
+              </dl>
+            </div>
+
+            <div className="detail-section">
+              <h3>Risk and control signals</h3>
+              <div className="signal-list">
+                {selectedRefund.risk_flags.length === 0 ? (
+                  <span className="signal-clear"><ShieldCheck size={14} /> No elevated signals</span>
+                ) : selectedRefund.risk_flags.map((signal) => (
+                  <span key={signal}><AlertTriangle size={14} /> {signal}</span>
+                ))}
+              </div>
+            </div>
+
+            <div className="detail-section">
+              <div className="section-heading"><h3>Audit history</h3><span>Append-only</span></div>
+              <div className="audit-timeline">
+                {selectedRefund.audit.map((event, index) => (
+                  <div key={`${event.action}-${index}`}>
+                    <span className="audit-dot" />
+                    <p><strong>{event.action}</strong><small>{event.actor} · {event.at}</small></p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="drawer-actions">
+              <button
+                className="secondary-button"
+                disabled={selectedRefund.assignee_id === user.id || selectedRefund.status === "Approved"}
+                onClick={() => void assignToMe(selectedRefund.id)}
+              >
+                <UserRoundCheck size={16} />
+                {selectedRefund.assignee_id === user.id ? "Assigned to you" : "Assign to me"}
+              </button>
+              <button
+                className="primary-button"
+                disabled={selectedRefund.status === "Approved" || selectedRefund.approved_by.includes(user.id)}
+                onClick={() => void approve(selectedRefund.id)}
+              >
+                <ShieldCheck size={16} />
+                {selectedRefund.status === "Approved"
+                  ? "Approved"
+                  : selectedRefund.approved_by.includes(user.id)
+                    ? "Peer approval required"
+                    : selectedRefund.approval_count > 0
+                      ? "Give second approval"
+                      : "Approve refund"}
+              </button>
+            </div>
+          </aside>
+        </div>
+      )}
     </div>
   );
 }
@@ -876,6 +1427,8 @@ function PeoplePanel({ user }: { user: User }) {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [draftRoles, setDraftRoles] = useState<Role[]>([]);
   const [saving, setSaving] = useState(false);
+  const [search, setSearch] = useState("");
+  const [accessFilter, setAccessFilter] = useState<"all" | "super-admin" | "review-due">("all");
 
   useEffect(() => {
     api.users(user.id).then(setUsers);
@@ -905,6 +1458,20 @@ function PeoplePanel({ user }: { user: User }) {
     setSaving(false);
   }
 
+  const filteredUsers = users.filter((person) => {
+    const query = search.trim().toLowerCase();
+    const matchesSearch = query.length === 0
+      || `${person.name} ${person.email} ${person.department} ${person.job_title}`
+        .toLowerCase()
+        .includes(query);
+    const matchesAccess =
+      accessFilter === "all"
+      || (accessFilter === "super-admin" && person.roles.includes("super_admin"))
+      || (accessFilter === "review-due" && person.access_review.includes("Sep"));
+    return matchesSearch && matchesAccess;
+  });
+  const privilegedUsers = users.filter((person) => person.roles.includes("super_admin")).length;
+
   return (
     <div className="page-content">
       <section className="admin-intro">
@@ -916,26 +1483,56 @@ function PeoplePanel({ user }: { user: User }) {
         <button className="primary-button"><Users size={16} /> Invite user</button>
       </section>
 
+      <section className="stat-grid access-stat-grid">
+        <StatCard label="Active employees" value="287" detail="Across 9 departments" tone="blue" />
+        <StatCard label="Privileged access" value={`${privilegedUsers}`} detail="Super-admin users" tone="purple" />
+        <StatCard label="Reviews due" value="12" detail="Within 30 days" tone="amber" />
+        <StatCard label="MFA coverage" value="100%" detail="4 security-key users" tone="green" />
+      </section>
+
       <section className="panel table-panel">
         <div className="panel-header panel-header--table">
           <div>
-            <h3>Team members</h3>
-            <p>{users.length} active users in this prototype tenant</p>
+            <h3>Users with operational access</h3>
+            <p>Showing {filteredUsers.length} of {users.length} elevated-access users in a 287-person tenant</p>
           </div>
-          <label className="inline-search"><Search size={15} /><input placeholder="Search people" /></label>
+          <div className="toolbar-actions">
+            <label className="inline-search">
+              <Search size={15} />
+              <input
+                placeholder="Search people"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+              />
+            </label>
+            <select
+              className="control-select"
+              value={accessFilter}
+              onChange={(event) => setAccessFilter(event.target.value as typeof accessFilter)}
+              aria-label="Filter operational access users"
+            >
+              <option value="all">All access</option>
+              <option value="super-admin">Super admins</option>
+              <option value="review-due">Review due soon</option>
+            </select>
+          </div>
+        </div>
+        <div className="people-columns">
+          <span>User</span><span>Department</span><span>Access</span><span>Last active</span><span>Status</span><span />
         </div>
         <div className="people-list">
-          {users.map((person) => (
+          {filteredUsers.map((person) => (
             <button className="person-row" key={person.id} onClick={() => openUser(person)}>
               <span className="avatar" style={{ backgroundColor: person.avatar_color }}>{initials(person.name)}</span>
               <span className="person-main">
                 <strong>{person.name}</strong>
-                <span>{person.email}</span>
+                <span>{person.job_title} · {person.location}</span>
               </span>
               <span className="person-department">{person.department}</span>
               <span className="role-tags">
                 {person.roles.map((role) => <i key={role}>{ROLE_LABELS[role]}</i>)}
               </span>
+              <span className="person-activity">{person.last_active}</span>
               <span className="status status--success">Active</span>
               <ArrowRight size={16} />
             </button>
@@ -953,6 +1550,16 @@ function PeoplePanel({ user }: { user: User }) {
                 <p>{selectedUser.job_title} · {selectedUser.department}</p>
               </div>
               <button className="icon-button" onClick={() => setSelectedUser(null)}><X size={19} /></button>
+            </div>
+            <div className="access-context">
+              <div><span>Work email</span><strong>{selectedUser.email}</strong></div>
+              <div><span>Last active</span><strong>{selectedUser.last_active}</strong></div>
+              <div><span>MFA method</span><strong>{selectedUser.mfa_status}</strong></div>
+              <div><span>Access review</span><strong>{selectedUser.access_review}</strong></div>
+            </div>
+            <div className="section-heading role-heading">
+              <h3>Role assignments</h3>
+              <span>{selectedUser.permissions.length} effective permissions</span>
             </div>
             <div className="role-options">
               {ALL_ROLES.map((role) => (
@@ -976,7 +1583,7 @@ function PeoplePanel({ user }: { user: User }) {
             </div>
             <div className="modal-warning">
               <AlertTriangle size={17} />
-              Role changes take effect immediately and are written to the audit log.
+              Role changes take effect immediately, require re-authentication, and are written to the audit log.
             </div>
             <div className="modal-actions">
               <button className="secondary-button" onClick={() => setSelectedUser(null)}>Cancel</button>
