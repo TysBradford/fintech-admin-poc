@@ -270,6 +270,7 @@ function SignIn({
 function Sidebar({
   user,
   active,
+  pendingRefundCount,
   onNavigate,
   onLogout,
   open,
@@ -277,6 +278,7 @@ function Sidebar({
 }: {
   user: User;
   active: ModuleId;
+  pendingRefundCount: number | null;
   onNavigate: (module: ModuleId) => void;
   onLogout: () => void;
   open: boolean;
@@ -320,7 +322,9 @@ function Sidebar({
                   <Icon size={18} />
                   <span>{item.label}</span>
                   {item.id === "kyc" && <span className="nav-count">4</span>}
-                  {item.id === "refunds" && <span className="nav-count">8</span>}
+                  {item.id === "refunds" && pendingRefundCount !== null && (
+                    <span className="nav-count">{pendingRefundCount}</span>
+                  )}
                 </button>
               );
             })}
@@ -436,7 +440,19 @@ function StatCard({
   );
 }
 
-function Overview({ user, onNavigate }: { user: User; onNavigate: (id: ModuleId) => void }) {
+function Overview({
+  user,
+  refundSummary,
+  activeFlagCount,
+  showRefundPriority,
+  onNavigate,
+}: {
+  user: User;
+  refundSummary: RefundResponse["summary"] | null;
+  activeFlagCount: number | null;
+  showRefundPriority: boolean;
+  onNavigate: (id: ModuleId) => void;
+}) {
   const accessibleModules = NAV_ITEMS.filter(
     (item) => item.id !== "overview" && hasPermission(user, item.permission),
   );
@@ -460,13 +476,28 @@ function Overview({ user, onNavigate }: { user: User; onNavigate: (id: ModuleId)
           <StatCard label="KYC cases" value="4" detail="2 high priority" tone="blue" />
         )}
         {hasPermission(user, "refunds:read") && (
-          <StatCard label="Pending refunds" value="8" detail="£4,860.42 total" tone="amber" />
+          <StatCard
+            label="Pending refunds"
+            value={refundSummary ? String(refundSummary.pending_count) : "—"}
+            detail={refundSummary ? `${refundSummary.pending_value} total` : "Loading queue"}
+            tone="amber"
+          />
         )}
         {hasPermission(user, "refunds:read") && (
-          <StatCard label="Processed today" value="23" detail="91.4% approval rate" tone="green" />
+          <StatCard
+            label="Processed today"
+            value={refundSummary ? String(refundSummary.processed_today) : "—"}
+            detail={refundSummary?.approval_rate ?? "Loading performance"}
+            tone="green"
+          />
         )}
         {hasPermission(user, "feature_flags:read") && (
-          <StatCard label="Active flags" value="2" detail="1 staged rollout" tone="purple" />
+          <StatCard
+            label="Active flags"
+            value={activeFlagCount === null ? "—" : String(activeFlagCount)}
+            detail="1 staged rollout"
+            tone="purple"
+          />
         )}
       </section>
 
@@ -493,7 +524,7 @@ function Overview({ user, onNavigate }: { user: User; onNavigate: (id: ModuleId)
                 <ArrowRight size={16} className="row-arrow" />
               </button>
             )}
-            {hasPermission(user, "refunds:read") && (
+            {hasPermission(user, "refunds:read") && showRefundPriority && (
               <button className="activity-row" onClick={() => onNavigate("refunds")}>
                 <span className="activity-icon activity-icon--warning">
                   <CircleDollarSign size={17} />
@@ -635,20 +666,33 @@ function KycPanel({ userId }: { userId: string }) {
   );
 }
 
-function FeatureFlagsPanel({ user }: { user: User }) {
+function FeatureFlagsPanel({
+  user,
+  onActiveCountChange,
+}: {
+  user: User;
+  onActiveCountChange: (count: number) => void;
+}) {
   const [flags, setFlags] = useState<FeatureFlag[]>([]);
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState("");
   const canWrite = user.permissions.includes("feature_flags:write");
 
   useEffect(() => {
-    api.featureFlags(user.id).then(setFlags).finally(() => setLoading(false));
-  }, [user.id]);
+    api.featureFlags(user.id)
+      .then((items) => {
+        setFlags(items);
+        onActiveCountChange(items.filter((item) => item.enabled).length);
+      })
+      .finally(() => setLoading(false));
+  }, [onActiveCountChange, user.id]);
 
   async function toggleFlag(flag: FeatureFlag) {
     if (!canWrite) return;
     const updated = await api.updateFeatureFlag(user.id, flag.id, !flag.enabled);
-    setFlags((current) => current.map((item) => (item.id === flag.id ? updated : item)));
+    const nextFlags = flags.map((item) => (item.id === flag.id ? updated : item));
+    setFlags(nextFlags);
+    onActiveCountChange(nextFlags.filter((item) => item.enabled).length);
     setNotice(`${flag.name} ${updated.enabled ? "enabled" : "disabled"}. Audit event recorded.`);
     window.setTimeout(() => setNotice(""), 3200);
   }
@@ -720,38 +764,28 @@ function FeatureFlagsPanel({ user }: { user: User }) {
   );
 }
 
-function RefundsPanel({ user }: { user: User }) {
+function RefundsPanel({
+  user,
+  onDataChange,
+}: {
+  user: User;
+  onDataChange: (data: RefundResponse) => void;
+}) {
   const [data, setData] = useState<RefundResponse | null>(null);
   const [notice, setNotice] = useState("");
 
   useEffect(() => {
-    api.refunds(user.id).then(setData);
-  }, [user.id]);
+    api.refunds(user.id).then((response) => {
+      setData(response);
+      onDataChange(response);
+    });
+  }, [onDataChange, user.id]);
 
   async function approve(refundId: string) {
     const updated = await api.approveRefund(user.id, refundId);
-    setData((current) => {
-      if (!current) return current;
-      const items = current.items.map((item) => (item.id === updated.id ? updated : item));
-      const pending = items.filter((item) => item.status !== "Approved");
-      const pendingValue = pending.reduce(
-        (total, item) => total + Number(item.amount.replace(/[£,]/g, "")),
-        0,
-      );
-      return {
-        summary: {
-          ...current.summary,
-          pending_count: pending.length,
-          pending_value: `£${pendingValue.toLocaleString("en-GB", {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-          })}`,
-          processed_today:
-            current.summary.processed_today + (updated.status === "Approved" ? 1 : 0),
-        },
-        items,
-      };
-    });
+    const nextData = await api.refunds(user.id);
+    setData(nextData);
+    onDataChange(nextData);
     setNotice(
       updated.status === "Approved"
         ? `${updated.id} approved. Audit event recorded.`
@@ -986,8 +1020,30 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [refundData, setRefundData] = useState<RefundResponse | null>(null);
+  const [activeFlagCount, setActiveFlagCount] = useState<number | null>(null);
 
   const currentMeta = useMemo(() => PAGE_META[active], [active]);
+  const refundSummary = refundData?.summary ?? null;
+  const showRefundPriority =
+    refundData?.items.some((refund) => refund.id === "RF-8291" && refund.status !== "Approved")
+    ?? false;
+
+  useEffect(() => {
+    if (!user) return;
+    if (hasPermission(user, "refunds:read")) {
+      api.refunds(user.id).then(setRefundData);
+    } else {
+      setRefundData(null);
+    }
+    if (hasPermission(user, "feature_flags:read")) {
+      api.featureFlags(user.id).then((flags) => {
+        setActiveFlagCount(flags.filter((flag) => flag.enabled).length);
+      });
+    } else {
+      setActiveFlagCount(null);
+    }
+  }, [user]);
 
   async function signIn(personaId: string) {
     setLoading(true);
@@ -1006,6 +1062,8 @@ export default function App() {
   function logout() {
     setUser(null);
     setActive("overview");
+    setRefundData(null);
+    setActiveFlagCount(null);
   }
 
   if (!user) {
@@ -1017,6 +1075,7 @@ export default function App() {
       <Sidebar
         user={user}
         active={active}
+        pendingRefundCount={refundSummary?.pending_count ?? null}
         onNavigate={setActive}
         onLogout={logout}
         open={sidebarOpen}
@@ -1032,10 +1091,22 @@ export default function App() {
           <LockKeyhole size={14} />
           Prototype environment · fictional people and synthetic operational data
         </div>
-        {active === "overview" && <Overview user={user} onNavigate={setActive} />}
+        {active === "overview" && (
+          <Overview
+            user={user}
+            refundSummary={refundSummary}
+            activeFlagCount={activeFlagCount}
+            showRefundPriority={showRefundPriority}
+            onNavigate={setActive}
+          />
+        )}
         {active === "kyc" && <KycPanel userId={user.id} />}
-        {active === "flags" && <FeatureFlagsPanel user={user} />}
-        {active === "refunds" && <RefundsPanel user={user} />}
+        {active === "flags" && (
+          <FeatureFlagsPanel user={user} onActiveCountChange={setActiveFlagCount} />
+        )}
+        {active === "refunds" && (
+          <RefundsPanel user={user} onDataChange={setRefundData} />
+        )}
         {active === "people" && <PeoplePanel user={user} />}
       </main>
     </div>

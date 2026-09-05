@@ -40,19 +40,11 @@ Copy `.env.example` to `.env` if you need to override defaults.
 
 ## Run locally
 
-Start the API:
-
-```bash
-poetry --directory backend run uvicorn app.main:app --reload
-```
-
-Start the frontend in another terminal:
-
 ```bash
 npm run dev
 ```
 
-Open `http://localhost:5173` and choose a demo identity. Morgan Lee is the super-admin persona.
+This starts the FastAPI server and Vite frontend together. Open `http://localhost:5173` and choose a demo identity. Morgan Lee is the super-admin persona.
 
 ## Checks
 
