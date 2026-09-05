@@ -194,6 +194,15 @@ def test_role_update_requires_reason() -> None:
     assert response.status_code == 422
 
 
+def test_role_update_rejects_blank_reason() -> None:
+    response = client.put(
+        "/api/admin/users/leo/roles",
+        headers={"X-Demo-User": "morgan"},
+        json={"roles": ["compliance_analyst"], "reason": "   "},
+    )
+    assert response.status_code == 422
+
+
 def test_unconfigured_auth_mode_fails_closed() -> None:
     with pytest.raises(RuntimeError, match="no configured identity provider"):
         build_security_context("entra")

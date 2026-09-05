@@ -1,7 +1,7 @@
 from datetime import datetime
 from enum import Enum
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class AuthenticationCredentials(BaseModel):
@@ -57,6 +57,14 @@ class AuditEvent(BaseModel):
 class RoleUpdate(BaseModel):
     roles: list[Role] = Field(min_length=1)
     reason: str = Field(min_length=3, max_length=200)
+
+    @field_validator("reason")
+    @classmethod
+    def validate_reason(cls, reason: str) -> str:
+        reason = reason.strip()
+        if len(reason) < 3:
+            raise ValueError("Reason must contain at least 3 characters")
+        return reason
 
 
 class FeatureFlagUpdate(BaseModel):
