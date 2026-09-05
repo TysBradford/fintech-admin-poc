@@ -70,6 +70,15 @@ class DemoFeatureFlagProvider:
                 "rollout": "25%",
                 "owner": "Compliance",
             },
+            {
+                "id": "new-user-onboarding",
+                "name": "New user onboarding flow",
+                "description": "Show the redesigned onboarding flow to newly registered users.",
+                "enabled": False,
+                "environment": "Production",
+                "rollout": "0%",
+                "owner": "Growth",
+            },
         ]
 
     def list_flags(self) -> list[dict[str, object]]:
