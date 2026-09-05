@@ -1,6 +1,7 @@
 import type {
   FeatureFlag,
   KycCase,
+  Refund,
   RefundResponse,
   Role,
   User,
@@ -45,7 +46,7 @@ export const api = {
   refunds: (userId: string) =>
     request<RefundResponse>("/api/refunds", userId),
   approveRefund: (userId: string, refundId: string) =>
-    request<{ status: string }>(`/api/refunds/${refundId}/approve`, userId, {
+    request<Refund>(`/api/refunds/${refundId}/approve`, userId, {
       method: "POST",
       body: JSON.stringify({ reason: "Reviewed in operations console" }),
     }),

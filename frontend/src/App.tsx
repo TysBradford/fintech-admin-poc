@@ -667,9 +667,9 @@ function FeatureFlagsPanel({ user }: { user: User }) {
       </section>
 
       <section className="flag-summary">
-        <div><strong>3</strong><span>Total flags</span></div>
-        <div><strong>2</strong><span>Enabled</span></div>
-        <div><strong>1</strong><span>Staged rollout</span></div>
+        <div><strong>{flags.length}</strong><span>Total flags</span></div>
+        <div><strong>{flags.filter((flag) => flag.enabled).length}</strong><span>Enabled</span></div>
+        <div><strong>{flags.filter((flag) => flag.environment === "Staging").length}</strong><span>Staged rollout</span></div>
         <div className="flag-summary-note"><ShieldCheck size={18} /><span>All changes require a reason and create an audit event.</span></div>
       </section>
 
@@ -722,21 +722,49 @@ function FeatureFlagsPanel({ user }: { user: User }) {
 
 function RefundsPanel({ user }: { user: User }) {
   const [data, setData] = useState<RefundResponse | null>(null);
-  const [approved, setApproved] = useState<string[]>([]);
+  const [notice, setNotice] = useState("");
 
   useEffect(() => {
     api.refunds(user.id).then(setData);
   }, [user.id]);
 
   async function approve(refundId: string) {
-    await api.approveRefund(user.id, refundId);
-    setApproved((items) => [...items, refundId]);
+    const updated = await api.approveRefund(user.id, refundId);
+    setData((current) => {
+      if (!current) return current;
+      const items = current.items.map((item) => (item.id === updated.id ? updated : item));
+      const pending = items.filter((item) => item.status !== "Approved");
+      const pendingValue = pending.reduce(
+        (total, item) => total + Number(item.amount.replace(/[£,]/g, "")),
+        0,
+      );
+      return {
+        summary: {
+          ...current.summary,
+          pending_count: pending.length,
+          pending_value: `£${pendingValue.toLocaleString("en-GB", {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          })}`,
+          processed_today:
+            current.summary.processed_today + (updated.status === "Approved" ? 1 : 0),
+        },
+        items,
+      };
+    });
+    setNotice(
+      updated.status === "Approved"
+        ? `${updated.id} approved. Audit event recorded.`
+        : `${updated.id} recorded. A distinct second approver is required.`,
+    );
+    window.setTimeout(() => setNotice(""), 3200);
   }
 
   if (!data) return <LoadingPanel />;
 
   return (
     <div className="page-content">
+      {notice && <div className="toast"><Check size={16} /> {notice}</div>}
       <section className="stat-grid stat-grid--refunds">
         <StatCard label="Pending refunds" value={String(data.summary.pending_count)} detail="Needs review" tone="amber" />
         <StatCard label="Pending value" value={data.summary.pending_value} detail="Across all queues" tone="blue" />
@@ -755,7 +783,15 @@ function RefundsPanel({ user }: { user: User }) {
           </div>
           <div className="refund-list">
             {data.items.map((refund) => {
-              const isApproved = approved.includes(refund.id);
+              const isApproved = refund.status === "Approved";
+              const alreadyApproved = refund.approved_by.includes(user.id);
+              const buttonLabel = isApproved
+                ? "Approved"
+                : alreadyApproved
+                  ? "Second approver required"
+                  : refund.approval_count > 0
+                    ? "Second review"
+                    : "Review";
               return (
                 <div className="refund-row" key={refund.id}>
                   <span className="refund-brand"><CircleDollarSign size={19} /></span>
@@ -773,9 +809,9 @@ function RefundsPanel({ user }: { user: User }) {
                   <button
                     className="small-button"
                     onClick={() => void approve(refund.id)}
-                    disabled={isApproved}
+                    disabled={isApproved || alreadyApproved}
                   >
-                    {isApproved ? "Approved" : "Review"}
+                    {buttonLabel}
                   </button>
                 </div>
               );
@@ -785,7 +821,7 @@ function RefundsPanel({ user }: { user: User }) {
         <aside className="panel policy-card">
           <div className="policy-icon"><ShieldCheck size={22} /></div>
           <h3>Approval policy</h3>
-          <p>Refunds above £1,000 require a second approver before processing.</p>
+          <p>Refunds above £1,000 require approval from two distinct people before processing.</p>
           <div className="policy-rule">
             <span>Standard limit</span>
             <strong>£1,000</strong>
@@ -992,6 +1028,10 @@ export default function App() {
           subtitle={currentMeta.subtitle}
           onOpenMenu={() => setSidebarOpen(true)}
         />
+        <div className="prototype-strip">
+          <LockKeyhole size={14} />
+          Prototype environment · fictional people and synthetic operational data
+        </div>
         {active === "overview" && <Overview user={user} onNavigate={setActive} />}
         {active === "kyc" && <KycPanel userId={user.id} />}
         {active === "flags" && <FeatureFlagsPanel user={user} />}

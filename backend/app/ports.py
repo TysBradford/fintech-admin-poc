@@ -15,3 +15,10 @@ class PaymentsProvider(Protocol):
     def refund_summary(self) -> dict[str, object]: ...
 
     def list_refunds(self) -> list[dict[str, object]]: ...
+
+    def approve_refund(
+        self,
+        refund_id: str,
+        approver_id: str,
+        reason: str,
+    ) -> dict[str, object]: ...

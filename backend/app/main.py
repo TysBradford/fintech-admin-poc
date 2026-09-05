@@ -100,10 +100,16 @@ def approve_refund(
     refund_id: str,
     payload: RefundRequest,
     user: User = Depends(require_permission(Permission.REFUNDS_WRITE)),
-) -> dict[str, str]:
-    return {
-        "refund_id": refund_id,
-        "status": "approved",
-        "approved_by": user.id,
-        "reason": payload.reason,
-    }
+) -> dict[str, object]:
+    try:
+        return payments_provider.approve_refund(refund_id, user.id, payload.reason)
+    except KeyError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Refund not found",
+        ) from error
+    except PermissionError as error:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(error),
+        ) from error

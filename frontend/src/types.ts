@@ -51,6 +51,9 @@ export interface Refund {
   reason: string;
   age: string;
   status: string;
+  required_approvals: number;
+  approval_count: number;
+  approved_by: string[];
 }
 
 export interface RefundResponse {
