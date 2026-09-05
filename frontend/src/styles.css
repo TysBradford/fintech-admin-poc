@@ -1284,6 +1284,17 @@ tbody tr:hover {
   padding: 0 8px;
 }
 
+.control-select {
+  min-height: 31px;
+  padding: 0 28px 0 10px;
+  border: 1px solid #d9e0e6;
+  border-radius: 7px;
+  color: #42566f;
+  background: white;
+  font-size: 10px;
+  font-weight: 600;
+}
+
 .flags-list {
   padding: 0 18px;
 }
@@ -1768,6 +1779,41 @@ tbody tr:hover {
   margin-top: 3px;
   color: #84909f;
   font-size: 11px;
+}
+
+.reason-field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 18px 23px;
+}
+
+.reason-field > span {
+  color: #354961;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.reason-field textarea {
+  width: 100%;
+  resize: vertical;
+  padding: 10px;
+  border: 1px solid #d8dfe6;
+  border-radius: 7px;
+  color: #263b53;
+  font: inherit;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.reason-field textarea:focus {
+  outline: 2px solid #dce4ff;
+  border-color: #728ae1;
+}
+
+.reason-field small {
+  color: #8994a2;
+  font-size: 9px;
 }
 
 .access-context {

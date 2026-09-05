@@ -43,10 +43,10 @@ export const api = {
     }),
   featureFlags: (userId: string) =>
     request<FeatureFlag[]>("/api/feature-flags", userId),
-  updateFeatureFlag: (userId: string, flagId: string, enabled: boolean) =>
+  updateFeatureFlag: (userId: string, flagId: string, enabled: boolean, reason: string) =>
     request<FeatureFlag>(`/api/feature-flags/${flagId}`, userId, {
       method: "PUT",
-      body: JSON.stringify({ enabled, reason: "Prototype demonstration" }),
+      body: JSON.stringify({ enabled, reason }),
     }),
   refunds: (userId: string) =>
     request<RefundResponse>("/api/refunds", userId),

@@ -789,7 +789,7 @@ class DemoPaymentsProvider:
                 "age": "2 hr 8 min",
                 "sla": "Breached by 8 min",
                 "sla_state": "Breached",
-                "status": "Awaiting approval",
+                "status": "Awaiting second approval",
                 "assignee_id": "priya",
                 "assignee": "Priya Shah",
                 "risk_flags": ["High value", "Beneficiary changed recently"],

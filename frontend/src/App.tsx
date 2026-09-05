@@ -19,7 +19,6 @@ import {
   Search,
   ShieldCheck,
   ShieldAlert,
-  SlidersHorizontal,
   Sparkles,
   Timer,
   UserCog,
@@ -523,7 +522,7 @@ function Overview({
                 </span>
                 <span className="activity-copy">
                   <strong>High-risk KYC case needs review</strong>
-                  <span>KYC-1048 · Document mismatch · 12 min ago</span>
+                  <span>KYC-1086 · Document mismatch · 12 min ago</span>
                 </span>
                 <span className="status status--danger">High risk</span>
                 <ArrowRight size={16} className="row-arrow" />
@@ -866,6 +865,8 @@ function FeatureFlagsPanel({
   const [notice, setNotice] = useState("");
   const [search, setSearch] = useState("");
   const [selectedFlag, setSelectedFlag] = useState<FeatureFlag | null>(null);
+  const [pendingFlag, setPendingFlag] = useState<FeatureFlag | null>(null);
+  const [changeReason, setChangeReason] = useState("");
   const canWrite = user.permissions.includes("feature_flags:write");
 
   useEffect(() => {
@@ -879,10 +880,17 @@ function FeatureFlagsPanel({
 
   async function toggleFlag(flag: FeatureFlag) {
     if (!canWrite) return;
-    const updated = await api.updateFeatureFlag(user.id, flag.id, !flag.enabled);
+    const updated = await api.updateFeatureFlag(
+      user.id,
+      flag.id,
+      !flag.enabled,
+      changeReason.trim(),
+    );
     const nextFlags = flags.map((item) => (item.id === flag.id ? updated : item));
     setFlags(nextFlags);
     setSelectedFlag((current) => current?.id === updated.id ? updated : current);
+    setPendingFlag(null);
+    setChangeReason("");
     onActiveCountChange(nextFlags.filter((item) => item.enabled).length);
     setNotice(`${flag.name} ${updated.enabled ? "enabled" : "disabled"}. Audit event recorded.`);
     window.setTimeout(() => setNotice(""), 3200);
@@ -958,7 +966,10 @@ function FeatureFlagsPanel({
                 <span>{flag.enabled ? "Enabled" : "Disabled"}</span>
                 <button
                   className={`toggle ${flag.enabled ? "is-on" : ""}`}
-                  onClick={() => void toggleFlag(flag)}
+                  onClick={() => {
+                    setPendingFlag(flag);
+                    setChangeReason("");
+                  }}
                   disabled={!canWrite}
                   aria-label={`${flag.enabled ? "Disable" : "Enable"} ${flag.name}`}
                 >
@@ -1026,12 +1037,51 @@ function FeatureFlagsPanel({
               <button
                 className="primary-button"
                 disabled={!canWrite}
-                onClick={() => void toggleFlag(selectedFlag)}
+                onClick={() => {
+                  setPendingFlag(selectedFlag);
+                  setChangeReason("");
+                }}
               >
                 <Flag size={16} /> {selectedFlag.enabled ? "Disable flag" : "Enable flag"}
               </button>
             </div>
           </aside>
+        </div>
+      )}
+
+      {pendingFlag && (
+        <div className="modal-backdrop" role="presentation" onMouseDown={() => setPendingFlag(null)}>
+          <section className="modal change-reason-modal" role="dialog" aria-modal="true" onMouseDown={(event) => event.stopPropagation()}>
+            <div className="modal-header">
+              <div>
+                <span className="eyebrow">Controlled production change</span>
+                <h2>{pendingFlag.enabled ? "Disable" : "Enable"} {pendingFlag.name}</h2>
+                <p>{pendingFlag.change_ticket} · {pendingFlag.risk} risk</p>
+              </div>
+              <button className="icon-button" onClick={() => setPendingFlag(null)}><X size={19} /></button>
+            </div>
+            <label className="reason-field">
+              <span>Reason for change</span>
+              <textarea
+                autoFocus
+                rows={4}
+                placeholder="Describe why this change is required"
+                value={changeReason}
+                onChange={(event) => setChangeReason(event.target.value)}
+              />
+              <small>This reason will be included in the append-only audit event.</small>
+            </label>
+            <div className="modal-actions">
+              <button className="secondary-button" onClick={() => setPendingFlag(null)}>Cancel</button>
+              <button
+                className="primary-button"
+                disabled={changeReason.trim().length < 3}
+                onClick={() => void toggleFlag(pendingFlag)}
+              >
+                Confirm change
+              </button>
+            </div>
+          </section>
         </div>
       )}
     </div>
@@ -1048,6 +1098,7 @@ function RefundsPanel({
   const [data, setData] = useState<RefundResponse | null>(null);
   const [notice, setNotice] = useState("");
   const [queue, setQueue] = useState<"all" | "mine" | "high-value" | "completed">("all");
+  const [operationalFilter, setOperationalFilter] = useState<"all" | "breached" | "unassigned">("all");
   const [search, setSearch] = useState("");
   const [selectedRefund, setSelectedRefund] = useState<RefundResponse["items"][number] | null>(null);
 
@@ -1090,17 +1141,21 @@ function RefundsPanel({
   const filteredRefunds = data.items.filter((refund) => {
     const isApproved = refund.status === "Approved";
     const matchesQueue =
-      queue === "all"
+      (queue === "all" && !isApproved)
       || (queue === "mine" && refund.assignee_id === user.id && !isApproved)
       || (queue === "high-value" && refund.required_approvals === 2 && !isApproved)
       || (queue === "completed" && isApproved);
+    const matchesOperationalFilter =
+      operationalFilter === "all"
+      || (operationalFilter === "breached" && refund.sla_state === "Breached")
+      || (operationalFilter === "unassigned" && refund.assignee_id === null);
     const query = search.trim().toLowerCase();
     const matchesSearch =
       query.length === 0
       || `${refund.id} ${refund.customer} ${refund.customer_id} ${refund.reason}`
         .toLowerCase()
         .includes(query);
-    return matchesQueue && matchesSearch;
+    return matchesQueue && matchesOperationalFilter && matchesSearch;
   });
   const highValueCount = data.items.filter(
     (refund) => refund.required_approvals === 2 && refund.status !== "Approved",
@@ -1143,7 +1198,16 @@ function RefundsPanel({
               onChange={(event) => setSearch(event.target.value)}
             />
           </label>
-          <button className="secondary-button"><SlidersHorizontal size={16} /> Filters</button>
+          <select
+            className="control-select"
+            value={operationalFilter}
+            onChange={(event) => setOperationalFilter(event.target.value as typeof operationalFilter)}
+            aria-label="Filter refund operations queue"
+          >
+            <option value="all">All controls</option>
+            <option value="breached">SLA breached</option>
+            <option value="unassigned">Unassigned</option>
+          </select>
         </div>
       </section>
 
@@ -1364,6 +1428,7 @@ function PeoplePanel({ user }: { user: User }) {
   const [draftRoles, setDraftRoles] = useState<Role[]>([]);
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState("");
+  const [accessFilter, setAccessFilter] = useState<"all" | "super-admin" | "review-due">("all");
 
   useEffect(() => {
     api.users(user.id).then(setUsers);
@@ -1395,10 +1460,15 @@ function PeoplePanel({ user }: { user: User }) {
 
   const filteredUsers = users.filter((person) => {
     const query = search.trim().toLowerCase();
-    return query.length === 0
+    const matchesSearch = query.length === 0
       || `${person.name} ${person.email} ${person.department} ${person.job_title}`
         .toLowerCase()
         .includes(query);
+    const matchesAccess =
+      accessFilter === "all"
+      || (accessFilter === "super-admin" && person.roles.includes("super_admin"))
+      || (accessFilter === "review-due" && person.access_review.includes("Sep"));
+    return matchesSearch && matchesAccess;
   });
   const privilegedUsers = users.filter((person) => person.roles.includes("super_admin")).length;
 
@@ -1435,7 +1505,16 @@ function PeoplePanel({ user }: { user: User }) {
                 onChange={(event) => setSearch(event.target.value)}
               />
             </label>
-            <button className="secondary-button"><SlidersHorizontal size={16} /> Filters</button>
+            <select
+              className="control-select"
+              value={accessFilter}
+              onChange={(event) => setAccessFilter(event.target.value as typeof accessFilter)}
+              aria-label="Filter operational access users"
+            >
+              <option value="all">All access</option>
+              <option value="super-admin">Super admins</option>
+              <option value="review-due">Review due soon</option>
+            </select>
           </div>
         </div>
         <div className="people-columns">
