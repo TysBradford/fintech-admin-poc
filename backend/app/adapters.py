@@ -1,3 +1,183 @@
+from __future__ import annotations
+
+from types import TracebackType
+
+from app.models import (
+    AuditEvent,
+    AuthenticatedIdentity,
+    AuthenticationCredentials,
+    Permission,
+    Role,
+    User,
+)
+from app.ports import AuthorizationRepository, AuthorizationUnitOfWork
+from app.security import AuthenticationError
+
+ROLE_PERMISSIONS: dict[Role, set[Permission]] = {
+    Role.SUPER_ADMIN: set(Permission),
+    Role.COMPLIANCE_ANALYST: {Permission.KYC_READ},
+    Role.PRODUCT_MANAGER: {
+        Permission.FEATURE_FLAGS_READ,
+        Permission.FEATURE_FLAGS_WRITE,
+    },
+    Role.SUPPORT_LEAD: {
+        Permission.REFUNDS_READ,
+        Permission.REFUNDS_WRITE,
+    },
+}
+
+
+DEMO_USERS: dict[str, User] = {
+    "morgan": User(
+        id="morgan",
+        name="Morgan Lee",
+        email="morgan.lee@example.internal",
+        job_title="Platform Operations Director",
+        department="Technology",
+        roles=[Role.SUPER_ADMIN],
+        avatar_color="#3157d5",
+    ),
+    "amina": User(
+        id="amina",
+        name="Amina Yusuf",
+        email="amina.yusuf@example.internal",
+        job_title="Senior Compliance Analyst",
+        department="Compliance",
+        roles=[Role.COMPLIANCE_ANALYST],
+        avatar_color="#0c7c6d",
+    ),
+    "leo": User(
+        id="leo",
+        name="Leo Martins",
+        email="leo.martins@example.internal",
+        job_title="Product Manager",
+        department="Product",
+        roles=[Role.PRODUCT_MANAGER],
+        avatar_color="#9a5b13",
+    ),
+    "priya": User(
+        id="priya",
+        name="Priya Shah",
+        email="priya.shah@example.internal",
+        job_title="Customer Support Lead",
+        department="Customer Experience",
+        roles=[Role.SUPPORT_LEAD],
+        avatar_color="#813aa6",
+    ),
+}
+
+
+class DemoIdentityProvider:
+    def authenticate(self, credentials: AuthenticationCredentials) -> AuthenticatedIdentity:
+        if credentials.identity_hint is None:
+            raise AuthenticationError("Demo identity is required")
+        return AuthenticatedIdentity(
+            provider="demo",
+            tenant_id="demo",
+            subject=credentials.identity_hint,
+        )
+
+
+class DemoAuthorizationRepository:
+    def __init__(self) -> None:
+        self._users = {user_id: user.model_copy(deep=True) for user_id, user in DEMO_USERS.items()}
+
+    def get_user_by_identity(self, identity: AuthenticatedIdentity) -> User | None:
+        if identity.provider != "demo" or identity.tenant_id != "demo":
+            return None
+        return self.get_user(identity.subject)
+
+    def get_user(self, user_id: str) -> User | None:
+        user = self._users.get(user_id)
+        return user.model_copy(deep=True) if user is not None else None
+
+    def list_users(self) -> list[User]:
+        return [user.model_copy(deep=True) for user in self._users.values()]
+
+    def permissions_for_roles(self, roles: list[Role]) -> set[Permission]:
+        permissions: set[Permission] = set()
+        for role in roles:
+            permissions.update(ROLE_PERMISSIONS[role])
+        return permissions
+
+    def update_user_roles(self, user_id: str, roles: list[Role]) -> User:
+        user = self._users[user_id]
+        updated = user.model_copy(update={"roles": roles}, deep=True)
+        self._users[user_id] = updated
+        return updated.model_copy(deep=True)
+
+    def snapshot(self) -> dict[str, User]:
+        return {user_id: user.model_copy(deep=True) for user_id, user in self._users.items()}
+
+    def restore(self, users: dict[str, User]) -> None:
+        self._users = {user_id: user.model_copy(deep=True) for user_id, user in users.items()}
+
+
+class DemoAuditSink:
+    def __init__(self) -> None:
+        self._events: list[AuditEvent] = []
+
+    @property
+    def events(self) -> list[AuditEvent]:
+        return [event.model_copy(deep=True) for event in self._events]
+
+    def record(self, event: AuditEvent) -> None:
+        self._events.append(event.model_copy(deep=True))
+
+    def snapshot(self) -> list[AuditEvent]:
+        return self.events
+
+    def restore(self, events: list[AuditEvent]) -> None:
+        self._events = [event.model_copy(deep=True) for event in events]
+
+
+class DemoAuthorizationUnitOfWork:
+    def __init__(
+        self,
+        repository: DemoAuthorizationRepository,
+        audit_sink: DemoAuditSink,
+    ) -> None:
+        self.repository: AuthorizationRepository = repository
+        self.audit_sink = audit_sink
+        self._demo_repository = repository
+        self._demo_audit_sink = audit_sink
+        self._user_snapshot: dict[str, User] = {}
+        self._audit_snapshot: list[AuditEvent] = []
+        self._committed = False
+
+    def __enter__(self) -> AuthorizationUnitOfWork:
+        self._user_snapshot = self._demo_repository.snapshot()
+        self._audit_snapshot = self._demo_audit_sink.snapshot()
+        self._committed = False
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> None:
+        if exc_type is not None or not self._committed:
+            self._demo_repository.restore(self._user_snapshot)
+            self._demo_audit_sink.restore(self._audit_snapshot)
+
+    def commit(self) -> None:
+        self._committed = True
+
+
+class DemoAuthorizationUnitOfWorkFactory:
+    def __init__(
+        self,
+        repository: DemoAuthorizationRepository,
+        audit_sink: DemoAuditSink,
+    ) -> None:
+        self._repository = repository
+        self._audit_sink = audit_sink
+
+    def __call__(self) -> AuthorizationUnitOfWork:
+        return DemoAuthorizationUnitOfWork(self._repository, self._audit_sink)
+
+
 class DemoKycDataSource:
     def list_cases(self) -> list[dict[str, object]]:
         return [

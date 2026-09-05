@@ -1,6 +1,18 @@
+from datetime import datetime
 from enum import Enum
 
 from pydantic import BaseModel, Field
+
+
+class AuthenticationCredentials(BaseModel):
+    authorization: str | None = None
+    identity_hint: str | None = None
+
+
+class AuthenticatedIdentity(BaseModel):
+    provider: str
+    tenant_id: str
+    subject: str
 
 
 class Role(str, Enum):
@@ -31,8 +43,20 @@ class User(BaseModel):
     avatar_color: str
 
 
+class AuditEvent(BaseModel):
+    action: str
+    actor_id: str
+    target_type: str
+    target_id: str
+    reason: str
+    occurred_at: datetime
+    previous_roles: list[Role]
+    new_roles: list[Role]
+
+
 class RoleUpdate(BaseModel):
     roles: list[Role] = Field(min_length=1)
+    reason: str = Field(min_length=3, max_length=200)
 
 
 class FeatureFlagUpdate(BaseModel):

@@ -2,10 +2,12 @@ from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.adapters import DemoFeatureFlagProvider, DemoKycDataSource, DemoPaymentsProvider
-from app.auth import DEMO_USERS, get_current_user, require_permission, with_permissions
+from app.auth import get_current_user, get_security_context, require_permission
+from app.composition import build_security_context
 from app.config import settings
 from app.models import FeatureFlagUpdate, Permission, RefundRequest, RoleUpdate, User
 from app.ports import FeatureFlagProvider, KycDataSource, PaymentsProvider
+from app.security import SecurityContext, UserNotFoundError
 
 app = FastAPI(
     title="Fintech Admin API",
@@ -19,6 +21,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.state.security = build_security_context(settings.auth_mode)
 
 kyc_source: KycDataSource = DemoKycDataSource()
 flag_provider: FeatureFlagProvider = DemoFeatureFlagProvider()
@@ -37,23 +40,31 @@ def me(user: User = Depends(get_current_user)) -> User:
 
 @app.get("/api/admin/users", response_model=list[User])
 def list_users(
+    security: SecurityContext = Depends(get_security_context),
     _: User = Depends(require_permission(Permission.USERS_READ)),
 ) -> list[User]:
-    return [with_permissions(user) for user in DEMO_USERS.values()]
+    return security.authorization.list_users()
 
 
 @app.put("/api/admin/users/{user_id}/roles", response_model=User)
 def update_roles(
     user_id: str,
     payload: RoleUpdate,
-    _: User = Depends(require_permission(Permission.USERS_WRITE)),
+    actor: User = Depends(require_permission(Permission.USERS_WRITE)),
+    security: SecurityContext = Depends(get_security_context),
 ) -> User:
-    user = DEMO_USERS.get(user_id)
-    if user is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-    updated_user = user.model_copy(update={"roles": payload.roles})
-    DEMO_USERS[user_id] = updated_user
-    return with_permissions(updated_user)
+    try:
+        return security.role_assignments.assign_roles(
+            actor=actor,
+            target_user_id=user_id,
+            roles=payload.roles,
+            reason=payload.reason,
+        )
+    except UserNotFoundError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        ) from error
 
 
 @app.get("/api/kyc/cases")

@@ -12,6 +12,15 @@ The prototype uses an explicit `AUTH_MODE=demo` adapter and synthetic personas. 
 
 The frontend must never be treated as an authorization boundary. Every protected API operation checks permissions independently.
 
+The application composes authentication and authorization through vendor-neutral ports:
+
+- an identity provider authenticates credentials into an external subject and tenant;
+- an authorization repository maps that identity to an internal user and resolves role policy;
+- an authorization service computes effective permissions and enforces route requirements;
+- privileged role assignments execute through a unit of work with an audit sink.
+
+`AUTH_MODE` selects the configured identity provider and fails closed when no adapter exists. The demo adapter requires an explicit synthetic identity; production modes must never fall back to it.
+
 ## Authorization
 
 Roles are small job-function bundles, while permissions are operation-specific. Production storage should include:

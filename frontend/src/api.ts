@@ -52,9 +52,14 @@ export const api = {
     }),
   users: (userId: string) =>
     request<User[]>("/api/admin/users", userId),
-  updateRoles: (userId: string, targetUserId: string, roles: Role[]) =>
+  updateRoles: (
+    userId: string,
+    targetUserId: string,
+    roles: Role[],
+    reason: string,
+  ) =>
     request<User>(`/api/admin/users/${targetUserId}/roles`, userId, {
       method: "PUT",
-      body: JSON.stringify({ roles }),
+      body: JSON.stringify({ roles, reason }),
     }),
 };

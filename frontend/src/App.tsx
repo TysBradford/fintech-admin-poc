@@ -875,15 +875,19 @@ function PeoplePanel({ user }: { user: User }) {
   const [users, setUsers] = useState<User[]>([]);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [draftRoles, setDraftRoles] = useState<Role[]>([]);
+  const [reason, setReason] = useState("");
   const [saving, setSaving] = useState(false);
+  const canWrite = user.permissions.includes("users:write");
 
   useEffect(() => {
     api.users(user.id).then(setUsers);
   }, [user.id]);
 
   function openUser(target: User) {
+    if (!canWrite) return;
     setSelectedUser(target);
     setDraftRoles(target.roles);
+    setReason("");
   }
 
   function toggleRole(role: Role) {
@@ -895,9 +899,15 @@ function PeoplePanel({ user }: { user: User }) {
   }
 
   async function saveRoles() {
-    if (!selectedUser || draftRoles.length === 0) return;
+    const trimmedReason = reason.trim();
+    if (!selectedUser || draftRoles.length === 0 || trimmedReason.length < 3) return;
     setSaving(true);
-    const updated = await api.updateRoles(user.id, selectedUser.id, draftRoles);
+    const updated = await api.updateRoles(
+      user.id,
+      selectedUser.id,
+      draftRoles,
+      trimmedReason,
+    );
     setUsers((current) =>
       current.map((item) => (item.id === updated.id ? updated : item)),
     );
@@ -913,7 +923,7 @@ function PeoplePanel({ user }: { user: User }) {
           <h2>People and access</h2>
           <p>Manage role assignments for internal team members. Changes are recorded in the audit log.</p>
         </div>
-        <button className="primary-button"><Users size={16} /> Invite user</button>
+        <button className="primary-button" disabled={!canWrite}><Users size={16} /> Invite user</button>
       </section>
 
       <section className="panel table-panel">
@@ -926,7 +936,12 @@ function PeoplePanel({ user }: { user: User }) {
         </div>
         <div className="people-list">
           {users.map((person) => (
-            <button className="person-row" key={person.id} onClick={() => openUser(person)}>
+            <button
+              className="person-row"
+              key={person.id}
+              onClick={() => openUser(person)}
+              disabled={!canWrite}
+            >
               <span className="avatar" style={{ backgroundColor: person.avatar_color }}>{initials(person.name)}</span>
               <span className="person-main">
                 <strong>{person.name}</strong>
@@ -974,13 +989,28 @@ function PeoplePanel({ user }: { user: User }) {
                 </button>
               ))}
             </div>
+            <label className="role-reason">
+              <span>Reason for change</span>
+              <textarea
+                value={reason}
+                onChange={(event) => setReason(event.target.value)}
+                placeholder="Explain why this access is needed"
+                maxLength={200}
+                rows={2}
+              />
+              <small>Required and recorded with the role assignment.</small>
+            </label>
             <div className="modal-warning">
               <AlertTriangle size={17} />
               Role changes take effect immediately and are written to the audit log.
             </div>
             <div className="modal-actions">
               <button className="secondary-button" onClick={() => setSelectedUser(null)}>Cancel</button>
-              <button className="primary-button" disabled={saving || draftRoles.length === 0} onClick={() => void saveRoles()}>
+              <button
+                className="primary-button"
+                disabled={saving || draftRoles.length === 0 || reason.trim().length < 3}
+                onClick={() => void saveRoles()}
+              >
                 {saving ? "Saving…" : "Save access"}
               </button>
             </div>
