@@ -38,6 +38,12 @@ poetry --directory backend install
 
 Copy `.env.example` to `.env` if you need to override defaults.
 
+Install the commit hooks once per clone:
+
+```bash
+npm run hooks:install
+```
+
 ## Run locally
 
 ```bash
@@ -48,12 +54,28 @@ This starts the FastAPI server and Vite frontend together. Open `http://localhos
 
 ## Checks
 
+Commit hooks (`.pre-commit-config.yaml`) and CI (`.github/workflows/pr-checks.yml`) run
+the same gates, so a change that commits cleanly should also pass review checks:
+
+| Gate | What it enforces |
+| --- | --- |
+| `guard-secrets` | no credentials, tokens, private keys, or real `.env` files |
+| `guard-sensitive-data` | synthetic emails/cards/IBANs only; no `print`/`console.log`; no PII in logs |
+| `guard-protected-files` | auth, config, CI, hooks, and dependency manifests only change deliberately |
+| `guard-authorization` | every API route keeps `require_permission`; mutations carry a request model; no wildcard CORS |
+| `guard-dependencies` | exact version pins; new versions at least 7 days old (CI) |
+| PR description (CI) | Summary, Data-security surface, and Not done sections are filled in |
+| ruff, mypy, eslint, tsc | code quality on commit; pytest and build on push |
+
+Run everything by hand:
+
 ```bash
+npm run check
 npm run lint
 npm run typecheck
 npm run build
 poetry --directory backend run ruff check .
-poetry --directory backend run mypy app
+poetry --directory backend run mypy --config-file backend/pyproject.toml backend/app
 poetry --directory backend run pytest
 ```
 
