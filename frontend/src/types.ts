@@ -6,6 +6,7 @@ export type Role =
 
 export type Permission =
   | "kyc:read"
+  | "kyc:write"
   | "feature_flags:read"
   | "feature_flags:write"
   | "refunds:read"
@@ -19,6 +20,10 @@ export interface User {
   email: string;
   job_title: string;
   department: string;
+  location: string;
+  last_active: string;
+  access_review: string;
+  mfa_status: string;
   roles: Role[];
   permissions: Permission[];
   avatar_color: string;
@@ -27,11 +32,25 @@ export interface User {
 export interface KycCase {
   id: string;
   customer: string;
+  customer_id: string;
   country: string;
+  entity_type: "Individual" | "Business";
   risk: "High" | "Medium" | "Low";
   reason: string;
+  signals: string[];
   submitted: string;
+  sla: string;
+  sla_state: "On track" | "Due soon" | "Breached";
   status: string;
+  assignee_id: string | null;
+  assignee: string;
+  audit: AuditEvent[];
+}
+
+export interface AuditEvent {
+  action: string;
+  actor: string;
+  at: string;
 }
 
 export interface FeatureFlag {
@@ -42,18 +61,34 @@ export interface FeatureFlag {
   environment: string;
   rollout: string;
   owner: string;
+  owner_contact: string;
+  flag_type: "Release" | "Experiment" | "Kill switch";
+  risk: "Standard" | "Elevated" | "Critical";
+  expires: string;
+  last_changed: string;
+  change_ticket: string;
+  audit: AuditEvent[];
 }
 
 export interface Refund {
   id: string;
   customer: string;
+  customer_id: string;
   amount: string;
   reason: string;
+  channel: string;
+  payment_method: string;
   age: string;
+  sla: string;
+  sla_state: "On track" | "Due soon" | "Breached";
   status: string;
+  assignee_id: string | null;
+  assignee: string;
+  risk_flags: string[];
   required_approvals: number;
   approval_count: number;
   approved_by: string[];
+  audit: AuditEvent[];
 }
 
 export interface RefundResponse {
