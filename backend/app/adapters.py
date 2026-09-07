@@ -603,6 +603,28 @@ class DemoFeatureFlagProvider:
                     },
                 ],
             },
+            {
+                "id": "alpha-feature",
+                "name": "Alpha feature",
+                "description": "Enable the new Alpha feature for production customers.",
+                "enabled": False,
+                "environment": "Production",
+                "rollout": "0%",
+                "owner": "Product",
+                "owner_contact": "Leo Martins",
+                "flag_type": "Release",
+                "risk": "Elevated",
+                "expires": "31 Dec 2026",
+                "last_changed": "Just now",
+                "change_ticket": "PROD-1201",
+                "audit": [
+                    {
+                        "action": "Flag created, disabled pending launch approval",
+                        "actor": "Leo Martins",
+                        "at": "Just now",
+                    },
+                ],
+            },
         ]
 
     def list_flags(self) -> list[dict[str, object]]:
